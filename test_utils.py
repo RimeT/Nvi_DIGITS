@@ -86,3 +86,22 @@ class TensorflowMixin(object):
         supercls = super(TensorflowMixin, cls)
         if hasattr(supercls, 'setUpClass'):
             supercls.setUpClass()
+
+# add by tiansong
+class MxnetMixin(object):
+    """
+    Mixin for mxnet tests
+    """
+    FRAMEWORK = 'mxnet'
+
+    @classmethod
+    def setUpClass(cls):
+        skipIfNotFramework('mxnet')
+        if cls.FRAMEWORK == 'mxnet' and not config_value('mxnet')['enabled']:
+            raise unitest.SkipTest('Mxnet not found')
+
+    # Call super.setUpClass() unless we're the last in the class hierarchy
+    supercls = super(MxnetMixin, cls)
+    if hasattr(supercls, 'setUpClass'):
+        supercls.setUpClass()
+

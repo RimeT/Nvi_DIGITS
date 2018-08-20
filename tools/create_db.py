@@ -39,6 +39,12 @@ if digits.config.config_value('tensorflow')['enabled']:
 else:
     tf = None
 
+# added by tiansong
+if digits.config.config_value('mxnet')['enabled']:
+    import mxnet as mx
+else:
+    mx = None
+
 logger = logging.getLogger('digits.tools.create_db')
 
 
@@ -391,6 +397,9 @@ def _create_tfrecords(image_count, write_queue, batch_size, output_dir,
 
     for writer in writers:
         writer.close()
+
+# added by tiansong
+# @TODO(tiansong) create mxnet database
 
 
 def _create_lmdb(image_count, write_queue, batch_size, output_dir,

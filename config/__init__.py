@@ -13,6 +13,7 @@ from . import (  # noqa
     server_name,
     store_option,
     tensorflow,
+    mxnet,  # added by tiansong
     url_prefix,
 )
 

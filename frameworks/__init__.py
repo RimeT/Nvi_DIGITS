@@ -16,6 +16,11 @@ if config_value('tensorflow')['enabled']:
     from .tensorflow_framework import TensorflowFramework
     __all__.append('TensorflowFramework')
 
+# added by tiansong
+if config_value('mxnet')['enabled']:
+    from .mxnet_framework import MxnetFramework
+    __all__.append('MxnetFramework')
+
 #
 #  create framework instances
 #
@@ -25,6 +30,10 @@ torch = TorchFramework() if config_value('torch')['enabled'] else None
 
 # tensorflow is optional
 tensorflow = TensorflowFramework() if config_value('tensorflow')['enabled'] else None
+
+# added by tiansong
+# mxent is optional
+mxnet = MxnetFramework() if config_value('mxnet')['enabled'] else None
 
 # caffe is mandatory
 caffe = CaffeFramework()
@@ -44,6 +53,8 @@ def get_frameworks():
         frameworks.append(torch)
     if tensorflow:
         frameworks.append(tensorflow)
+    if mxnet:
+        frameworks.append(mxnet)
     return frameworks
 
 
