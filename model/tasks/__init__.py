@@ -16,3 +16,8 @@ from digits.config import config_value  # noqa
 if config_value('tensorflow')['enabled']:
     from .tensorflow_train import TensorflowTrainTask  # noqa
     __all__.append('TensorflowTrainTask')
+
+# added by tiansong
+if config_value('mxnet')['enabled']:
+    from .mxnet_train import MxnetTrainTask
+    __all__.append('MxnetTrainTask')

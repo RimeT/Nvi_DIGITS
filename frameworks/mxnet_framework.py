@@ -11,7 +11,7 @@ from .errors import NetworkVisualizationError
 from .framework import Framework
 import digits
 from digits import utils
-#from digits.model.tasks import MxnetTrainTask
+from digits.model.tasks import MxnetTrainTask
 from digits.utils import subclass, override, constants
 
 @subclass
@@ -35,8 +35,10 @@ class MxnetFramework(Framework):
 
     @override
     def create_train_task(self, **kwargs):
-        # @TODO implement this later
-        return None
+        """
+        create train task
+        """
+        return MxnetTrainTask(framework_id=self.framework_id, **kwargs)
 
     @override
     def get_standard_network_desc(self, network):
