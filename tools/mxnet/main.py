@@ -32,7 +32,7 @@ if not inspect.isclass(UserModel):
 
 # data
 num_outputs = 10
-batch_size = 15
+batch_size = 64
 train_model = Model(digits.STAGE_TRAIN,
                     num_outputs=num_outputs,
                     optimization='sgd')
@@ -41,12 +41,14 @@ train_model.dataloader.setup(shuffle=True,
                              batch_size=batch_size,
                              seed=42)
 
-val_model = Model(digits.STAGE_VAL, num_outputs)
-val_model.create_dataloader(db_path=val_set_folder)
-val_model.dataloader.setup(shuffle=False,
-                           batch_size=batch_size,
-                           seed=42)
+#val_model = Model(digits.STAGE_VAL, num_outputs)
+#val_model.create_dataloader(db_path=val_set_folder)
+#val_model.dataloader.setup(shuffle=False,
+#                           batch_size=batch_size,
+#                           seed=42)
 
 # train
 train_model.create_model(UserModel)
 
+epoch_num = 5
+train_model.start_train(epoch_num=epoch_num)

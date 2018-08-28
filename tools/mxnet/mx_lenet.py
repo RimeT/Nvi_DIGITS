@@ -25,7 +25,7 @@ class UserModel(Tower):
 
             return net
 
-    def loss(self):
+    def loss_function(self):
         loss = digits.classification_loss()
         return loss
 

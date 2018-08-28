@@ -2,18 +2,6 @@ import os
 import mxnet as mx
 import utils as digits
 
-train_data_path = "/home/tiansong/Workspace/PycharmProjects/TermOne/data/mnist/train"
-test_data_path = "/home/tiansong/Workspace/PycharmProjects/TermOne/data/mnist/test"
-
-data_folder = "/home/tiansong/Workspace/PycharmProjects/TermOne/data/mnist/"
-# dataset_name = "train"
-# training_path = os.path.join(data_folder, dataset_name)
-# testing_path = os.path.join(data_folder, "test")
-#
-# train_dataset = mx.gluon.data.vision.ImageFolderDataset(training_path)
-# # param: rootpath, flag=0:greyscale 1:color 3 channels
-# test_dataset = mx.gluon.data.vision.ImageFolderDataset(testing_path)
-
 DB_EXTENSIONS = {
     'hdf5': ['.H5', '.HDF5'],
     'lmdb': ['.MDB', '.LMDB'],
@@ -123,7 +111,22 @@ class ImageFolderLoader(LoaderFactory):
         self.data_volume = None
 
     def initialize(self):
-        self.data_set = mx.gluon.data.vision.ImageFolderDataset(self.db_path)  # flag = 0:gray 1:color
+        if self._seed is not None:
+            mx.random.seed(self._seed)
+        else:
+            mx.random.seed(42)
+
+        # normalize
+        def transform(data, label):
+            data = data.astype('float32') / 255
+            x, y, z = data.shape
+            data = data.reshape((z, x, y))
+            return data, label
+
+        self.data_set = mx.gluon.data.vision.ImageFolderDataset(self.db_path,
+                                                                transform=transform,
+                                                                flag=1)  # flag = 0:gray 1:color
+
         self.data_volume = len(self.data_set)
         self.num_outputs = len(self.data_set.synsets)
         self.gluon_loader = mx.gluon.data.DataLoader(dataset=self.data_set,

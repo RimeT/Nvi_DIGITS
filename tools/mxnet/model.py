@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from mxnet import gluon
+from mxnet import gluon, autograd, ndarray
 import mxnet as mx
 import utils as digits
 import mx_data
@@ -19,12 +19,15 @@ import mx_data
 class Model(object):
     def __init__(self, stage, num_outputs, optimization=None):
         self.stage = stage
+        self.user_model = None
         self._initializer = mx.init.Xavier()
         self._optimization = optimization
         self._net = None
+        self._trainer = None
         self.num_outputs = num_outputs
         self.dataloader = None
         self.ctx = mx.cpu()
+        self.gpu_num = digits.get_num_gpus()
         self.summaries = []
         self.towers = []
 
@@ -34,10 +37,47 @@ class Model(object):
 
     def create_model(self, obj_UserModel):
         if digits.get_num_gpus() > 0:
-            self.ctx = mx.gpu()
-        self._net = obj_UserModel(self.num_outputs).construct_net()
+            self.ctx = [mx.gpu(i) for i in digits.get_available_gpus()]
+        self.user_model = obj_UserModel(self.num_outputs)
+        self._net = self.user_model.construct_net()
         self._net.hybridize()
-        self._net.collect_params().initialize(self._initializer, ctx=self.ctx)
+        self._net.initialize(self._initializer, ctx=self.ctx[-1])  # error occurred when call mx.gpu()
+        # trainer
+        self._optimization = 'sgd'
+        self._trainer = gluon.Trainer(self._net.collect_params(), self._optimization,
+                                      {'learning_rate': self.learning_rate()})
+
+    def start_train(self, epoch_num=1):
+        loss_func = self.user_model.loss_function()
+        data_loader = self.dataloader.get_gluon_loader()
+        for epoch in range(epoch_num):
+            for batch_num, (data, label) in enumerate(data_loader):
+                data = data.as_in_context(self.ctx[-1])
+                label = label.as_in_context(self.ctx[-1])
+                # ask auto grad to record the forward pass
+                with autograd.record():
+                    output = self._net(data)
+                    loss = loss_func(output, label)
+                loss.backward()
+                self._trainer.step(data.shape[0])
+
+                # print lss once in a while
+                if batch_num % 50 == 0:
+                    curr_loss = ndarray.mean(loss).asscalar()
+                    print("Epoch: %d; Batch %d; Loss %f" % (epoch, batch_num, curr_loss))
+
+    def summary(self):
+        """
+        Merge train summaries
+        """
+        for t in self.towers:
+            self.summaries += t.summaries
+
+    def train_batch(self, train_batch, ctx):
+        pass
+
+    def valid_batch(self, train_batch, ctx):
+        pass
 
     def add_tower(self, obj_tower, x, y):
         is_training = self.stage == digits.STAGE_TRAIN
@@ -47,21 +87,11 @@ class Model(object):
         self.towers.append(tower)
         return tower
 
-    def train(self):
-        pass
-
-    def summary(self):
-        """
-        Merge train summaries
-        """
-        for t in self.towers:
-            self.summaries += t.summaries
-
     def global_step(self):
         pass
 
     def learning_rate(self):
-        pass
+        return 0.001
 
     def optimizer(self):
         if self._optimization == 'sgd':
