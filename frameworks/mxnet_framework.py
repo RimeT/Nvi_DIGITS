@@ -83,6 +83,10 @@ class MxnetFramework(Framework):
         return previous_network
 
     @override
+    def validate_network(self, data):
+        return True
+
+    @override
     def get_network_visualization(self, **kwargs):
         # @TODO implement this later
         return None

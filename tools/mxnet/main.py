@@ -19,36 +19,49 @@ val_set_folder = "/vdata/test"
 
 # model
 import mx_lenet
+
 import inspect
+import logging
 
-try:
-    UserModel
-except NameError:
-    print('UserModel is not defined')
-    exit(-1)
-if not inspect.isclass(UserModel):
-    print('UserModel is not a class')
-    exit(-1)
+logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    level=logging.INFO)
 
-# data
-num_outputs = 10
-batch_size = 64
-train_model = Model(digits.STAGE_TRAIN,
-                    num_outputs=num_outputs,
-                    optimization='sgd')
-train_model.create_dataloader(db_path=train_set_folder)
-train_model.dataloader.setup(shuffle=True,
-                             batch_size=batch_size,
-                             seed=42)
+def main():
+    print("mx--tools.main")
+    logging.info('tools.mxnet.main is running')
 
-#val_model = Model(digits.STAGE_VAL, num_outputs)
-#val_model.create_dataloader(db_path=val_set_folder)
-#val_model.dataloader.setup(shuffle=False,
-#                           batch_size=batch_size,
-#                           seed=42)
+    try:
+        UserModel
+    except NameError:
+        print('UserModel is not defined')
+        exit(-1)
+    if not inspect.isclass(UserModel):
+        print('UserModel is not a class')
+        exit(-1)
 
-# train
-train_model.create_model(UserModel)
+    # data
+    num_outputs = 10
+    batch_size = 64
+    train_model = Model(digits.STAGE_TRAIN,
+                        num_outputs=num_outputs,
+                        optimization='sgd')
+    train_model.create_dataloader(db_path=train_set_folder)
+    train_model.dataloader.setup(shuffle=True,
+                                 batch_size=batch_size,
+                                 seed=42)
 
-epoch_num = 5
-train_model.start_train(epoch_num=epoch_num)
+    #val_model = Model(digits.STAGE_VAL, num_outputs)
+    #val_model.create_dataloader(db_path=val_set_folder)
+    #val_model.dataloader.setup(shuffle=False,
+    #                           batch_size=batch_size,
+    #                           seed=42)
+
+    # train
+    train_model.create_model(UserModel)
+
+    epoch_num = 5
+    train_model.start_train(epoch_num=epoch_num)
+
+if __name__ ==  '__main__':
+    main()

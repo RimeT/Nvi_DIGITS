@@ -41,7 +41,7 @@ class Model(object):
         self.user_model = obj_UserModel(self.num_outputs)
         self._net = self.user_model.construct_net()
         self._net.hybridize()
-        self._net.initialize(self._initializer, ctx=self.ctx[-1])  # error occurred when call mx.gpu()
+        self._net.initialize(self._initializer, ctx=self.ctx[0])
         # trainer
         self._optimization = 'sgd'
         self._trainer = gluon.Trainer(self._net.collect_params(), self._optimization,
@@ -52,8 +52,8 @@ class Model(object):
         data_loader = self.dataloader.get_gluon_loader()
         for epoch in range(epoch_num):
             for batch_num, (data, label) in enumerate(data_loader):
-                data = data.as_in_context(self.ctx[-1])
-                label = label.as_in_context(self.ctx[-1])
+                data = data.as_in_context(self.ctx[0])
+                label = label.as_in_context(self.ctx[0])
                 # ask auto grad to record the forward pass
                 with autograd.record():
                     output = self._net(data)

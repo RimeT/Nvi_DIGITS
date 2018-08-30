@@ -1,15 +1,14 @@
-"""
-mxnet lenet model
-added by tiansong
-"""
 from mxnet import gluon
 from model import Tower
+import utils as digits
 
 
 class UserModel(Tower):
 
-    def symbol(self):
-        net = self.net
+    def construct_net(self):
+        # net_type indicates gluon.nn
+        # default net_type is gluon.nn.HybridSequential()
+        net = self.net_type
         with net.name_scope():
             # First convolution
             net.add(gluon.nn.Conv2D(channels=20, kernel_size=5, activation='relu'))
@@ -26,7 +25,7 @@ class UserModel(Tower):
 
             return net
 
-    def loss(self):
-        loss = None
+    def loss_function(self):
+        loss = digits.classification_loss()
         return loss
 
