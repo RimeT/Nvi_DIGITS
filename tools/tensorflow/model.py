@@ -97,6 +97,8 @@ class Model(object):
         #     self.optimizer
 
     def create_dataloader(self, db_path):
+        print("tftools.create_dataloader")
+        print("db_path=" + db_path)
         self.dataloader = tf_data.LoaderFactory.set_source(db_path, is_inference=(self.stage == digits.STAGE_INF))
         # @TODO(tzaman) communicate the dataloader summaries to our Model summary list
         self.dataloader.stage = self.stage
@@ -200,6 +202,7 @@ class Model(object):
             self._train = apply_gradient_ops
 
     def start_queue_runners(self, sess):
+        print('tftools.start_queue_runners')
         logging.info('Starting queue runners (%s)', self.stage)
         # Distinguish the queue runner collection (for easily obtaining them by collection key)
         queue_runners = tf.get_collection(tf.GraphKeys.QUEUE_RUNNERS, scope=self.stage+'.*')
@@ -229,6 +232,7 @@ class Model(object):
 
     @model_property
     def train(self):
+        print("tftools.train")
         return self._train
 
     @model_property
@@ -246,6 +250,7 @@ class Model(object):
 
     @model_property
     def global_step(self):
+        print("tftools.global_step")
         # Force global_step on the CPU, becaues the GPU's first step will end at 0 instead of 1.
         with tf.device('/cpu:0'):
             return tf.get_variable('global_step', [], initializer=tf.constant_initializer(0),
@@ -287,6 +292,7 @@ class Model(object):
             exit(-1)
 
     def get_tower_losses(self, tower):
+        print("tftools.get_tower_losses")
         """
         Return list of losses
 

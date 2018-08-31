@@ -390,6 +390,7 @@ def loadLabels(filename):
 
 
 def main(_):
+    print('tftool.main')
 
     # Always keep the cpu as default
     with tf.Graph().as_default(), tf.device('/cpu:0'):

@@ -5,15 +5,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
 from mxnet import gluon, autograd, ndarray
 import mxnet as mx
 import utils as digits
 import mx_data
 
 
-# logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
-#                     datefmt='%Y-%m-%d %H:%M:%S',
-#                     level=logging.INFO)
+logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    level=logging.INFO)
 
 
 class Model(object):
@@ -50,6 +51,7 @@ class Model(object):
     def start_train(self, epoch_num=1):
         loss_func = self.user_model.loss_function()
         data_loader = self.dataloader.get_gluon_loader()
+        logging.info('Started training the model')
         for epoch in range(epoch_num):
             for batch_num, (data, label) in enumerate(data_loader):
                 data = data.as_in_context(self.ctx[0])
@@ -61,10 +63,10 @@ class Model(object):
                 loss.backward()
                 self._trainer.step(data.shape[0])
 
-                # print lss once in a while
+                # print loss once in a while
                 if batch_num % 50 == 0:
                     curr_loss = ndarray.mean(loss).asscalar()
-                    print("Epoch: %d; Batch %d; Loss %f" % (epoch, batch_num, curr_loss))
+                    #print("Epoch: %d; Batch %d; Loss %f" % (epoch, batch_num, curr_loss))
 
     def summary(self):
         """
