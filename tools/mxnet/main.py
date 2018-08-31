@@ -16,7 +16,6 @@ import logging
 
 
 # model
-import mx_lenet
 import inspect
 
 train_set_folder = "/vdata/train"
@@ -119,14 +118,14 @@ def main():
 
     # data
     num_outputs = 10
-    batch_size = 64
+    batch_size = int(args['batch_size'])
     train_model = Model(digits.STAGE_TRAIN,
                         num_outputs=num_outputs,
                         optimization='sgd')
     train_model.create_dataloader(db_path=train_set_folder)
     train_model.dataloader.setup(shuffle=True,
                                  batch_size=batch_size,
-                                 seed=42)
+                                 seed=int(args['seed']))
 
     #val_model = Model(digits.STAGE_VAL, num_outputs)
     #val_model.create_dataloader(db_path=val_set_folder)
@@ -137,7 +136,7 @@ def main():
     # train
     train_model.create_model(UserModel)
 
-    epoch_num = 5
+    epoch_num = int(args["epoch"])
     train_model.start_train(epoch_num=epoch_num)
 if __name__ ==  '__main__':
     main()

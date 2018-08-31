@@ -92,6 +92,9 @@ class LoaderFactory(object):
 
         return loader
 
+    def get_batch_size(self):
+        return self.batch_size
+
     def get_shape(self):
         pass
 

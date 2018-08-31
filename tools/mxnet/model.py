@@ -5,6 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import time
 import logging
 from mxnet import gluon, autograd, ndarray
 import mxnet as mx
@@ -48,25 +49,45 @@ class Model(object):
         self._trainer = gluon.Trainer(self._net.collect_params(), self._optimization,
                                       {'learning_rate': self.learning_rate()})
 
+    def train_result_list(self, loss, batch):
+        # TODO auto convert params to string: loss accuracy learning_rate batch
+        result_str = ''
+        result_str = result_str + "loss" + " = " + "{:.6f}".format(loss) + ", "
+        result_str = result_str + "lr" + " = " + "{:.6f}".format(self.learning_rate())
+        #result_str = result_str + "batch" + " = " + str(batch)
+
+        return result_str
+
     def start_train(self, epoch_num=1):
+        #start_time = time.time() # seem to be useless
         loss_func = self.user_model.loss_function()
         data_loader = self.dataloader.get_gluon_loader()
+        volume = self.dataloader.get_volume()
+        week = volume / self.dataloader.get_batch_size()
         logging.info('Started training the model')
-        for epoch in range(epoch_num):
-            for batch_num, (data, label) in enumerate(data_loader):
-                data = data.as_in_context(self.ctx[0])
-                label = label.as_in_context(self.ctx[0])
-                # ask auto grad to record the forward pass
-                with autograd.record():
-                    output = self._net(data)
-                    loss = loss_func(output, label)
-                loss.backward()
-                self._trainer.step(data.shape[0])
+        try:
+            for epoch in range(epoch_num):
+                for batch_num, (data, label) in enumerate(data_loader):
+                    data = data.as_in_context(self.ctx[0])
+                    label = label.as_in_context(self.ctx[0])
+                    # ask auto grad to record the forward pass
+                    with autograd.record():
+                        output = self._net(data)
+                        loss = loss_func(output, label)
+                    loss.backward()
+                    self._trainer.step(data.shape[0])
 
-                # print loss once in a while
-                if batch_num % 50 == 0:
-                    curr_loss = ndarray.mean(loss).asscalar()
-                    #print("Epoch: %d; Batch %d; Loss %f" % (epoch, batch_num, curr_loss))
+                    # print loss once in a while
+                    if batch_num % 50 == 0:
+                        curr_loss = ndarray.mean(loss).asscalar()
+                        result_list = self.train_result_list(curr_loss, batch_num)
+                        curr_epoch = round( epoch_num * (epoch * week + batch_num) / (epoch_num * week), 2)
+                        logging.info("Training (epoch " + str(curr_epoch) + "): " + result_list)
+                        #print("Epoch: %d; Batch %d; Loss %f" % (epoch, batch_num, curr_loss))
+        except (KeyboardInterrupt):
+            logging.info('Interrupt signal received.')
+        #train_time = time.time() - start_time # seem to be useless
+        logging.info('END')
 
     def summary(self):
         """

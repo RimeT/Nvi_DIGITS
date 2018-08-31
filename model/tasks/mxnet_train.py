@@ -25,6 +25,7 @@ MXNET_SNAPSHOT_PREFIX = 'snapshot'
 TIMELINE_PREFIX = 'timeline'
 
 def subprocess_visible_devices(gpus):
+    print("mxtrain.subprocess_visible_devices")
     """
     Calculates CUDA_VISIBLE_DEVICES for a subprocess
     """
@@ -132,7 +133,7 @@ class MxnetTrainTask(TrainTask):
         return snapshot file for specified epoch
 	@TODO need to modify for mxnet
         """
-    	return "get_snapshot"
+    	return []
 
     @override
     def task_arguments(self, resources, env):
@@ -281,16 +282,19 @@ class MxnetTrainTask(TrainTask):
 
         if not level:
             # network display in progress
+            print("mxtrain.po not level")
             if self.displaying_network:
                 self.temp_unrecognized_output.append(line)
                 return True
             return False
 
         if not message:
+            print("mxtrain.po not message")
             return True
 
         # network display ends
         if self.displaying_network:
+            print("mxtrain.po displaying_network")
             if message.startswith('Network definition ends'):
                 self.temp_unrecognized_output = []
                 self.displaying_network = False
@@ -299,6 +303,7 @@ class MxnetTrainTask(TrainTask):
         # Distinguish between a Validation and Training stage epoch
         pattern_stage_epoch = re.compile(r'(Validation|Training)\ \(\w+\ ([^\ ]+)\)\:\ (.*)')
         for (stage, epoch, kvlist) in re.findall(pattern_stage_epoch, message):
+            print("mxtrain.po pattern_match")
             epoch = float(epoch)
             self.send_progress_update(epoch)
             pattern_key_val = re.compile(r'([\w\-_]+)\ =\ ([^,^\ ]+)')
@@ -309,6 +314,7 @@ class MxnetTrainTask(TrainTask):
                 if key == 'lr':
                     key = 'learning_rate'  # Convert to special DIGITS key for learning rate
                 if stage == 'Training':
+                    self.logger.debug("mxtrain.po train output %s #%s: %s" % (key, epoch, value))
                     self.save_train_output(key, key, value)
                 elif stage == 'Validation':
                     self.save_val_output(key, key, value)
@@ -320,12 +326,14 @@ class MxnetTrainTask(TrainTask):
 
         # timeline trace saved
         if message.startswith('Timeline trace written to'):
+            print("mxtrain.po timeline trace written to")
             self.logger.info(message)
             self.detect_timeline_traces()
             return True
 
         # snapshot saved
         if self.saving_snapshot:
+            print("mxtrain.po saving_snapshot")
             if message.startswith('Snapshot saved'):
                 self.logger.info(message)
             self.detect_snapshots()
@@ -341,6 +349,7 @@ class MxnetTrainTask(TrainTask):
 
         # network display starting
         if message.startswith('Network definition:'):
+            print("mxtrain.po network definition true")
             self.displaying_network = True
             return True
 
@@ -354,6 +363,7 @@ class MxnetTrainTask(TrainTask):
 
     @staticmethod
     def preprocess_output_mxnet(line):
+        print("mxtrain.preprocess_output_mxnet")
         """
         Takes line of output and parses it according to mxnet's output format
         Returns (timestamp, level, message) or (None, None, None)
@@ -377,6 +387,20 @@ class MxnetTrainTask(TrainTask):
         else:
             # self.logger.warning('Unrecognized task output "%s"' % line)
             return (None, None, None)
+
+    def send_snapshot_update(self):
+        print("mxtrain.send_snapshot_update")
+        """
+        Sends socketio message about the snapshot list
+        """
+        # TODO: move to TrainTask
+        from digits.webapp import socketio
+
+        socketio.emit('task update', {'task': self.html_id(),
+                                      'update': 'snapshots',
+                                      'data': self.snapshot_list()},
+                      namespace='/jobs',
+                      room=self.job_id)
 
     @override
     def after_run(self):
@@ -414,16 +438,18 @@ class MxnetTrainTask(TrainTask):
     @override
     def detect_timeline_traces(self):
         print('mx-- mxnet framework not suppport detect_timeline_traces yet')
-        return 0
+        timeline_traces = []
+        return len(self.timeline_traces) > 0
 
     @override
     def detect_snapshots(self):
         print('mx-- mxnet framework not support detect_snapshots yet')
-        return None
+        self.snapshots = []
+        return len(self.snapshots) > 0
 
     @override
     def est_next_snapshot(self):
-        pass
+        return None
 
     @override
     def infer_one(self,
@@ -444,15 +470,51 @@ class MxnetTrainTask(TrainTask):
     def infer_many_images(self):
         pass
 
+    def has_model(self):
+        print("mxtrain.has_model")
+        return len(self.snapshots) != 0
+
     @override
     def get_model_files(self):
-        pass
+        print("mxtrain.get_model_files")
+        return {"Network": self.model_file}
 
     @override
     def get_network_desc(self):
-        pass
+        print("mxtrain_get_network_desc")
+        """
+        return text description of network
+        """
+        with open(os.path.join(self.job_dir, MXNET_MODEL_FILE), "r") as infile:
+            desc = infile.read()
+        return desc
 
     @override
     def get_task_stats(self, epoch=-1):
-        pass
+        print("mxtrain.get_task_stats")
+        """
+        return a dictionary of task statistics
+        """
+
+        loc, mean_file = os.path.split(self.dataset.get_mean_file())
+
+        stats = {
+            "image dimensions": self.dataset.get_feature_dims(),
+            "mean file": mean_file,
+            "snapshot file": self.get_snapshot_filename(epoch),
+            "model file": self.model_file,
+            "framework": "mxnet",
+            "mean subtraction": self.use_mean
+        }
+
+        if hasattr(self, "digits_version"):
+            stats.update({"digits version": self.digits_version})
+
+        if hasattr(self.dataset, "resize_mode"):
+            stats.update({"image resize mode": self.dataset.resize_mode})
+
+        if hasattr(self.dataset, "labels_file"):
+            stats.update({"labels file": self.dataset.labels_file})
+
+        return stats
 
