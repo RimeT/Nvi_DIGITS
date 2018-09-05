@@ -48,13 +48,20 @@ def get_frameworks():
     return list of all available framework instances
     there may be more than one instance per framework class
     """
-    frameworks = [caffe]
-    if torch:
-        frameworks.append(torch)
-    if tensorflow:
-        frameworks.append(tensorflow)
+    #frameworks = [caffe]
+    #if mxnet:
+    #    frameworks.append(mxnet)
+    #if torch:
+    #    frameworks.append(torch)
+    #if tensorflow:
+    #    frameworks.append(tensorflow)
+    
+    # modify by tiansong
+    frameworks = []
     if mxnet:
         frameworks.append(mxnet)
+    if tensorflow:
+        frameworks.append(tensorflow)
     return frameworks
 
 

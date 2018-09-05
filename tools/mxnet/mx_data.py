@@ -1,6 +1,7 @@
 import os
 import mxnet as mx
 import utils as digits
+from mxnet.gluon.data.vision import transforms
 
 DB_EXTENSIONS = {
     'hdf5': ['.H5', '.HDF5'],
@@ -78,7 +79,9 @@ class LoaderFactory(object):
         self.shuffle = shuffle
         self.batch_size = batch_size
         self.num_epochs = num_epochs
-        self._seed = seed
+        self._seed = None
+        if seed is not None:
+            self._seed = int(seed)
         self.initialize()
 
     @staticmethod
@@ -120,18 +123,19 @@ class ImageFolderLoader(LoaderFactory):
             mx.random.seed(42)
 
         # normalize
-        def transform(data, label):
-            data = data.astype('float32') / 255
-            x, y, z = data.shape
-            data = data.reshape((z, x, y))
-            return data, label
+        transformer = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(0.13, 0.31)
+        ])
 
         self.data_set = mx.gluon.data.vision.ImageFolderDataset(self.db_path,
-                                                                transform=transform,
                                                                 flag=1)  # flag = 0:gray 1:color
 
         self.data_volume = len(self.data_set)
         self.num_outputs = len(self.data_set.synsets)
+
+        self.data_set = self.data_set.transform_first(transformer)
+
         self.gluon_loader = mx.gluon.data.DataLoader(dataset=self.data_set,
                                                      batch_size=self.batch_size,
                                                      shuffle=self.shuffle,

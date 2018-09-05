@@ -166,7 +166,19 @@ class MxnetTrainTask(TrainTask):
         val_feature_db_path = self.dataset.get_feature_db_path(constants.VAL_DB)
         val_label_db_path = self.dataset.get_label_db_path(constants.VAL_DB)
 
-        args.append('--train_db=%s' % train_feature_db_path)
+        # dataloader specific to gluon
+        train_txt = self.dataset.get_feature_db_path(constants.TRAIN_FILE)
+        train_folder = None
+        if train_txt is not None:
+            with open(train_txt, 'r') as f:
+                first_line = str(f.readline())
+                first_line = first_line.strip()
+            image_file = first_line.split(' ')[0]
+            index = image_file[:image_file.rfind('/')].rfind('/')
+            train_folder = image_file[:index]
+
+        #args.append('--train_db=%s' % train_feature_db_path)
+        args.append('--train_db=%s' % train_folder)
         if train_label_db_path:
             args.append('--train_labels=%s' % train_label_db_path)
         if val_feature_db_path:

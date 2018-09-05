@@ -18,9 +18,6 @@ import logging
 # model
 import inspect
 
-train_set_folder = "/vdata/train"
-val_set_folder = "/vdata/test"
-
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.INFO)
@@ -107,6 +104,14 @@ def main():
                                 args['networkDirectory'], args['network'])
     exec(open(path_network).read(), globals())
 
+    train_db = args['train_db']
+    lr_base = float(args['lr_base_rate'])
+    snaps_dir = args['save']
+    snaps_pf = args['snapshotPrefix']
+    seed = None
+    if 'seed' in args:
+        seed = args['seed']
+
     try:
         UserModel
     except NameError:
@@ -117,15 +122,15 @@ def main():
         exit(-1)
 
     # data
-    num_outputs = 10
     batch_size = int(args['batch_size'])
-    train_model = Model(digits.STAGE_TRAIN,
-                        num_outputs=num_outputs,
+    train_model = Model(lr_base,
+                        snaps_dir,
+                        snaps_pf,
                         optimization='sgd')
-    train_model.create_dataloader(db_path=train_set_folder)
-    train_model.dataloader.setup(shuffle=True,
+    train_model.create_dataloader(train_db=train_db)
+    train_model.train_loader.setup(shuffle=True,
                                  batch_size=batch_size,
-                                 seed=int(args['seed']))
+                                 seed=seed)
 
     #val_model = Model(digits.STAGE_VAL, num_outputs)
     #val_model.create_dataloader(db_path=val_set_folder)

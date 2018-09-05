@@ -19,28 +19,32 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
 
 
 class Model(object):
-    def __init__(self, stage, num_outputs, optimization=None):
-        self.stage = stage
+    def __init__(self, lr_base, snaps_dir, snaps_pf,optimization=None):
+        self.lr = lr_base
         self.user_model = None
         self._initializer = mx.init.Xavier()
         self._optimization = optimization
         self._net = None
         self._trainer = None
-        self.num_outputs = num_outputs
-        self.dataloader = None
+        self.train_loader = None
+        self.valid_loader = None
+        self.snapshot_dir = snaps_dir
+        self.snapshot_prefix = snaps_pf
         self.ctx = mx.cpu()
         self.gpu_num = digits.get_num_gpus()
         self.summaries = []
         self.towers = []
 
-    def create_dataloader(self, db_path):
-        self.dataloader = mx_data.LoaderFactory.set_source(db_path)
-        self.dataloader.num_outputs = self.num_outputs
+    def create_dataloader(self, train_db, valid_db=None):
+        self.train_loader = mx_data.LoaderFactory.set_source(train_db)
+        #self.valid_loader = mx_data.LoaderFactory.set_source(valid_db)
+        if valid_db is not None:
+            self.valid_loader = mx_data.LoaderFactory.set_source(valid_db)
 
     def create_model(self, obj_UserModel):
         if digits.get_num_gpus() > 0:
             self.ctx = [mx.gpu(i) for i in digits.get_available_gpus()]
-        self.user_model = obj_UserModel(self.num_outputs)
+        self.user_model = obj_UserModel(self.train_loader.num_outputs)
         self._net = self.user_model.construct_net()
         self._net.hybridize()
         self._net.initialize(self._initializer, ctx=self.ctx[0])
@@ -61,9 +65,9 @@ class Model(object):
     def start_train(self, epoch_num=1):
         #start_time = time.time() # seem to be useless
         loss_func = self.user_model.loss_function()
-        data_loader = self.dataloader.get_gluon_loader()
-        volume = self.dataloader.get_volume()
-        week = volume / self.dataloader.get_batch_size()
+        data_loader = self.train_loader.get_gluon_loader()
+        volume = self.train_loader.get_volume()
+        week = volume / self.train_loader.get_batch_size()
         logging.info('Started training the model')
         try:
             for epoch in range(epoch_num):
@@ -84,6 +88,10 @@ class Model(object):
                         curr_epoch = round( epoch_num * (epoch * week + batch_num) / (epoch_num * week), 2)
                         logging.info("Training (epoch " + str(curr_epoch) + "): " + result_list)
                         #print("Epoch: %d; Batch %d; Loss %f" % (epoch, batch_num, curr_loss))
+
+                #snapshot save
+                self._net.export(self.snapshot_dir + '/' + self.snapshot_prefix, epoch=epoch)
+
         except (KeyboardInterrupt):
             logging.info('Interrupt signal received.')
         #train_time = time.time() - start_time # seem to be useless
@@ -102,19 +110,11 @@ class Model(object):
     def valid_batch(self, train_batch, ctx):
         pass
 
-    def add_tower(self, obj_tower, x, y):
-        is_training = self.stage == digits.STAGE_TRAIN
-        is_inference = self.stage == digits.STAGE_INF
-        input_shape = self.dataloader.get_shape()
-        tower = obj_tower(x, y, input_shape, self.num_outputs, is_training, is_inference)
-        self.towers.append(tower)
-        return tower
-
     def global_step(self):
         pass
 
     def learning_rate(self):
-        return 0.001
+        return self.lr
 
     def optimizer(self):
         if self._optimization == 'sgd':
