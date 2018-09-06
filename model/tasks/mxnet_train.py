@@ -167,6 +167,7 @@ class MxnetTrainTask(TrainTask):
         val_label_db_path = self.dataset.get_label_db_path(constants.VAL_DB)
 
         # dataloader specific to gluon
+        # TODO remove this parser, gluon should read data from db
         train_txt = self.dataset.get_feature_db_path(constants.TRAIN_FILE)
         train_folder = None
         if train_txt is not None:
@@ -177,12 +178,23 @@ class MxnetTrainTask(TrainTask):
             index = image_file[:image_file.rfind('/')].rfind('/')
             train_folder = image_file[:index]
 
+        val_txt = self.dataset.get_feature_db_path(constants.VAL_FILE)
+        val_folder = None
+        if val_txt is not None:
+            with open(val_txt, 'r') as f:
+                first_line = str(f.readline())
+                first_line = first_line.strip()
+            image_file = first_line.split(' ')[0]
+            index = image_file[:image_file.rfind('/')].rfind('/')
+            val_folder = image_file[:index]
+
         #args.append('--train_db=%s' % train_feature_db_path)
         args.append('--train_db=%s' % train_folder)
         if train_label_db_path:
             args.append('--train_labels=%s' % train_label_db_path)
         if val_feature_db_path:
-            args.append('--validation_db=%s' % val_feature_db_path)
+            #args.append('--validation_db=%s' % val_feature_db_path)
+            args.append('--validation_db=%s' % val_folder)
         if val_label_db_path:
             args.append('--validation_labels=%s' % val_label_db_path)
 

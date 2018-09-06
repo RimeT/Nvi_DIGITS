@@ -105,6 +105,7 @@ def main():
     exec(open(path_network).read(), globals())
 
     train_db = args['train_db']
+    val_db = args['validation_db']
     lr_base = float(args['lr_base_rate'])
     snaps_dir = args['save']
     snaps_pf = args['snapshotPrefix']
@@ -122,21 +123,20 @@ def main():
         exit(-1)
 
     # data
-    batch_size = int(args['batch_size'])
+    batch_size = None
+    if 'batch_size' in args:
+        batch_size = args['batch_size']
     train_model = Model(lr_base,
                         snaps_dir,
                         snaps_pf,
                         optimization='sgd')
-    train_model.create_dataloader(train_db=train_db)
+    train_model.create_dataloader(train_db=train_db, valid_db=val_db)
     train_model.train_loader.setup(shuffle=True,
                                  batch_size=batch_size,
                                  seed=seed)
 
-    #val_model = Model(digits.STAGE_VAL, num_outputs)
-    #val_model.create_dataloader(db_path=val_set_folder)
-    #val_model.dataloader.setup(shuffle=False,
-    #                           batch_size=batch_size,
-    #                           seed=42)
+    train_model.valid_loader.setup(shuffle=False,
+                                   batch_size=batch_size)
 
     # train
     train_model.create_model(UserModel)

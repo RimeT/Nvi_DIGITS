@@ -28,6 +28,7 @@ class Model(object):
         self._trainer = None
         self.train_loader = None
         self.valid_loader = None
+        self.log_interval = 100
         self.snapshot_dir = snaps_dir
         self.snapshot_prefix = snaps_pf
         self.ctx = mx.cpu()
@@ -35,11 +36,9 @@ class Model(object):
         self.summaries = []
         self.towers = []
 
-    def create_dataloader(self, train_db, valid_db=None):
+    def create_dataloader(self, train_db, valid_db):
         self.train_loader = mx_data.LoaderFactory.set_source(train_db)
-        #self.valid_loader = mx_data.LoaderFactory.set_source(valid_db)
-        if valid_db is not None:
-            self.valid_loader = mx_data.LoaderFactory.set_source(valid_db)
+        self.valid_loader = mx_data.LoaderFactory.set_source(valid_db)
 
     def create_model(self, obj_UserModel):
         if digits.get_num_gpus() > 0:
@@ -53,25 +52,35 @@ class Model(object):
         self._trainer = gluon.Trainer(self._net.collect_params(), self._optimization,
                                       {'learning_rate': self.learning_rate()})
 
-    def train_result_list(self, loss, batch):
-        # TODO auto convert params to string: loss accuracy learning_rate batch
-        result_str = ''
-        result_str = result_str + "loss" + " = " + "{:.6f}".format(loss) + ", "
-        result_str = result_str + "lr" + " = " + "{:.6f}".format(self.learning_rate())
-        #result_str = result_str + "batch" + " = " + str(batch)
+    def batch_validation(self, val_loader, loss_func, acc_func, volume, week, epoch, epoch_num):
+        acc = acc_func
+        for batch_num, (data, label) in enumerate(val_loader):
+            data = data.as_in_context(self.ctx[0])
+            label = label.as_in_context(self.ctx[0])
+            output = self._net(data)
+            loss = loss_func(output, label)
+            curr_loss = ndarray.mean(loss).asscalar()
+            predictions = mx.nd.argmax(output, axis=1)
+            acc.update(preds=predictions, labels=label)
 
-        return result_str
-
+            if batch_num % self.log_interval == 0:
+               self.print_train_stats(2, volume, week, epoch, epoch_num, batch_num, curr_loss, acc.get()[1])
+    
     def start_train(self, epoch_num=1):
         #start_time = time.time() # seem to be useless
         loss_func = self.user_model.loss_function()
-        data_loader = self.train_loader.get_gluon_loader()
+        t_loader = self.train_loader.get_gluon_loader()
+        v_loader = self.valid_loader.get_gluon_loader()
+        logging.info('Started training the model')
         volume = self.train_loader.get_volume()
         week = volume / self.train_loader.get_batch_size()
-        logging.info('Started training the model')
+        smoothing_constant = .01
+
         try:
-            for epoch in range(epoch_num):
-                for batch_num, (data, label) in enumerate(data_loader):
+            for epoch in range(epoch_num):        
+                train_acc = mx.metric.Accuracy()
+                valid_acc = mx.metric.Accuracy()
+                for batch_num, (data, label) in enumerate(t_loader):
                     data = data.as_in_context(self.ctx[0])
                     label = label.as_in_context(self.ctx[0])
                     # ask auto grad to record the forward pass
@@ -80,14 +89,20 @@ class Model(object):
                         loss = loss_func(output, label)
                     loss.backward()
                     self._trainer.step(data.shape[0])
+                    curr_loss = ndarray.mean(loss).asscalar()
+                    moving_loss = (curr_loss if ((batch_num == 0) and (epoch == 0))
+                       else (1 - smoothing_constant) * moving_loss + smoothing_constant * curr_loss)
+                    # accuracy
+                    preds = mx.nd.argmax(output, axis=1)
+                    train_acc.update(preds=preds, labels=label)
 
                     # print loss once in a while
-                    if batch_num % 50 == 0:
-                        curr_loss = ndarray.mean(loss).asscalar()
-                        result_list = self.train_result_list(curr_loss, batch_num)
-                        curr_epoch = round( epoch_num * (epoch * week + batch_num) / (epoch_num * week), 2)
-                        logging.info("Training (epoch " + str(curr_epoch) + "): " + result_list)
-                        #print("Epoch: %d; Batch %d; Loss %f" % (epoch, batch_num, curr_loss))
+                    if batch_num % self.log_interval == 0:
+                        self.print_train_stats(1, volume, week, epoch, epoch_num, batch_num, moving_loss, train_acc.get()[1])
+
+                #validation
+                self.batch_validation(v_loader, loss_func, valid_acc, volume, week, epoch, epoch_num)
+
 
                 #snapshot save
                 self._net.export(self.snapshot_dir + '/' + self.snapshot_prefix, epoch=epoch)
@@ -97,6 +112,34 @@ class Model(object):
         #train_time = time.time() - start_time # seem to be useless
         logging.info('END')
 
+
+    def print_train_stats(self, log_type, volume, week, epoch, epoch_num, batch_num, loss, accuracy):
+        curr_epoch = round(epoch_num * (epoch * week + batch_num) / (epoch_num * week), 2)
+        log_str = ''
+        if log_type == 1:
+            log_str = self.format_train(curr_epoch, loss, accuracy)
+        elif log_type == 2:
+            log_str = self.format_valid(curr_epoch, loss, accuracy)
+        logging.info(log_str)
+
+
+    def format_train(self, epoch, loss, accuracy):
+        # TODO auto convert params to string: loss accuracy learning_rate
+        log_str = "Training (epoch " + str(epoch) + "): "
+        log_str = log_str + "loss" + " = " + "{:.6f}".format(loss) + ", "
+        log_str = log_str + "accuracy" + " = " + "{:.6f}".format(accuracy) + ", "
+        log_str = log_str + "lr" + " = " + "{:.6f}".format(self.learning_rate())
+
+        return log_str
+
+    def format_valid(self, epoch, loss, accuracy):
+        log_str = "Validation (epoch " + str(epoch) + "): "
+        log_str = log_str + "loss" + " = " + "{:.6f}".format(loss) + ", "
+        log_str = log_str + "accuracy" + " = " + "{:.6f}".format(accuracy)
+
+        return log_str
+
+    
     def summary(self):
         """
         Merge train summaries

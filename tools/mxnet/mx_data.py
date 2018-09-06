@@ -65,7 +65,6 @@ class LoaderFactory(object):
         self.data_volume = None
         self.batch_size = None
         self.num_outputs = None
-        self.num_epochs = None
         self.batch_x = None
         self.batch_y = None
         self._seed = None
@@ -75,11 +74,12 @@ class LoaderFactory(object):
         self.is_inference = False
         self.gluon_loader = None
 
-    def setup(self, shuffle, batch_size, num_epochs=None, seed=None):
+    def setup(self, shuffle, batch_size=None, seed=None):
         self.shuffle = shuffle
-        self.batch_size = batch_size
-        self.num_epochs = num_epochs
-        self._seed = None
+        self.batch_size = 10
+        if batch_size is not None:
+            self.batch_size = batch_size
+        self._seed = 42
         if seed is not None:
             self._seed = int(seed)
         self.initialize()
@@ -117,10 +117,7 @@ class ImageFolderLoader(LoaderFactory):
         self.data_volume = None
 
     def initialize(self):
-        if self._seed is not None:
-            mx.random.seed(self._seed)
-        else:
-            mx.random.seed(42)
+        mx.random.seed(self._seed)
 
         # normalize
         transformer = transforms.Compose([
