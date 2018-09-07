@@ -89,5 +89,13 @@ class MxnetFramework(Framework):
     @override
     def get_network_visualization(self, **kwargs):
         # @TODO implement this later
+        """
+        return visualization of network
+        """
+        desc = kwargs['desc']
+        # save network description to temporary file
+        temp_network_handle, temp_network_path = tempfile.mkstemp(suffix='.lua')
+        os.write(temp_network_handle, desc)
+        os.close(temp_network_handle)
         return None
 

@@ -720,6 +720,8 @@ def get_datasets():
 def get_standard_networks():
     return [
         ('lenet', 'LeNet'),
+        ('resnet', 'ResNet-50'),
+        ('net_zoo', 'Net Zoo'),
         ('alexnet', 'AlexNet'),
         ('googlenet', 'GoogLeNet'),
     ]
