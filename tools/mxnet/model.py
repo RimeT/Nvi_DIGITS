@@ -19,7 +19,7 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
 
 
 class Model(object):
-    def __init__(self, lr_base, snaps_dir, snaps_pf,optimization=None):
+    def __init__(self, lr_base, snaps_dir, snaps_pf, snaps_itv, valid_itv, optimization=None):
         self.lr = lr_base
         self.user_model = None
         self._initializer = mx.init.Xavier()
@@ -31,6 +31,8 @@ class Model(object):
         self.log_interval = 100
         self.snapshot_dir = snaps_dir
         self.snapshot_prefix = snaps_pf
+        self.snapshot_interval = snaps_itv
+        self.valid_interval = valid_itv
         self.ctx = mx.cpu()
         self.gpu_num = digits.get_num_gpus()
         self.summaries = []
@@ -54,26 +56,33 @@ class Model(object):
 
     def batch_validation(self, val_loader, loss_func, acc_func, volume, week, epoch, epoch_num):
         acc = acc_func
+        average_acc = 0
+        average_loss = 0
+        
         for batch_num, (data, label) in enumerate(val_loader):
             data = data.as_in_context(self.ctx[0])
             label = label.as_in_context(self.ctx[0])
             output = self._net(data)
             loss = loss_func(output, label)
             curr_loss = ndarray.mean(loss).asscalar()
+            average_loss += curr_loss
             predictions = mx.nd.argmax(output, axis=1)
             acc.update(preds=predictions, labels=label)
+            average_acc += acc.get()[1]
 
-            if batch_num % self.log_interval == 0:
-               self.print_train_stats(2, volume, week, epoch, epoch_num, batch_num, curr_loss, acc.get()[1])
+        average_acc = average_acc / len(val_loader)
+        average_loss = average_loss / len(val_loader)
+        self.print_train_stats(2, volume, week, epoch, epoch_num, len(val_loader) -1, average_loss, average_acc)
     
     def start_train(self, epoch_num=1):
-        #start_time = time.time() # seem to be useless
         loss_func = self.user_model.loss_function()
         t_loader = self.train_loader.get_gluon_loader()
         v_loader = self.valid_loader.get_gluon_loader()
         logging.info('Started training the model')
-        volume = self.train_loader.get_volume()
-        week = volume / self.train_loader.get_batch_size()
+        t_volume = self.train_loader.get_volume()
+        t_week = t_volume / self.train_loader.get_batch_size()
+        v_volume = self.valid_loader.get_volume()
+        v_week = v_volume / self.valid_loader.get_batch_size()
         smoothing_constant = .01
 
         try:
@@ -96,20 +105,20 @@ class Model(object):
                     preds = mx.nd.argmax(output, axis=1)
                     train_acc.update(preds=preds, labels=label)
 
-                    # print loss once in a while
+                    # print loss once in a while - in batch loop
                     if batch_num % self.log_interval == 0:
-                        self.print_train_stats(1, volume, week, epoch, epoch_num, batch_num, moving_loss, train_acc.get()[1])
+                        self.print_train_stats(1, t_volume, t_week, epoch, epoch_num, batch_num, moving_loss, train_acc.get()[1])
 
-                #validation
-                self.batch_validation(v_loader, loss_func, valid_acc, volume, week, epoch, epoch_num)
+                #validation - in epoch loop
+                if (epoch % self.valid_interval == 0) or (epoch == epoch_num - 1):
+                    self.batch_validation(v_loader, loss_func, valid_acc, v_volume, v_week, epoch, epoch_num)
 
-
-                #snapshot save
-                self._net.export(self.snapshot_dir + '/' + self.snapshot_prefix, epoch=epoch)
+                #snapshot save - in epoch loop
+                if (epoch % self.snapshot_interval == 0) or (epoch == epoch_num - 1):
+                    self._net.export(self.snapshot_dir + '/' + self.snapshot_prefix, epoch=epoch)
 
         except (KeyboardInterrupt):
             logging.info('Interrupt signal received.')
-        #train_time = time.time() - start_time # seem to be useless
         logging.info('END')
 
 

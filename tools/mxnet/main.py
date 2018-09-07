@@ -42,7 +42,7 @@ def main():
     parser.add_argument('--snapshotPrefix',
                         type=str)
     parser.add_argument('--snapshotInterval',
-                        type=str)
+                        type=float)
     parser.add_argument('--lr_base_rate',
                         type=str)
     parser.add_argument('--lr_policy',
@@ -78,7 +78,7 @@ def main():
     parser.add_argument('--optimization',
                         type=str)
     parser.add_argument('--validation_interval',
-                        type=str)
+                        type=int)
     parser.add_argument('--log_runtime_stats_per_step',
                         type=str)
     parser.add_argument('--weights',
@@ -109,6 +109,8 @@ def main():
     lr_base = float(args['lr_base_rate'])
     snaps_dir = args['save']
     snaps_pf = args['snapshotPrefix']
+    snaps_itv = args['snapshotInterval']
+    valid_itv = args['validation_interval']
     seed = None
     if 'seed' in args:
         seed = args['seed']
@@ -129,6 +131,8 @@ def main():
     train_model = Model(lr_base,
                         snaps_dir,
                         snaps_pf,
+                        snaps_itv,
+                        valid_itv,
                         optimization='sgd')
     train_model.create_dataloader(train_db=train_db, valid_db=val_db)
     train_model.train_loader.setup(shuffle=True,
