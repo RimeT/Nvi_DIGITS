@@ -75,6 +75,7 @@ class Model(object):
         self.print_train_stats(2, volume, week, epoch, epoch_num, len(val_loader) -1, average_loss, average_acc)
     
     def start_train(self, epoch_num=1):
+        self._net.collect_params().reset_ctx(self.ctx[0])
         loss_func = self.user_model.loss_function()
         t_loader = self.train_loader.get_gluon_loader()
         v_loader = self.valid_loader.get_gluon_loader()
