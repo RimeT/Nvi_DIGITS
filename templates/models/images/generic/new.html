@@ -409,6 +409,9 @@ function customizeNetwork(network, snapshot_list, framework) {
               )
         .done(function(data) {
                 data = $.parseJSON(data);
+                // add by tiansong
+                console.log(data);
+                // end by tiansong
                 editor.setValue(data['network']);
                 editor.selection.moveTo(0, 0);
                 if (data['snapshot'])
@@ -429,6 +432,11 @@ function customizeNetwork(network, snapshot_list, framework) {
         $('#network-tabs a:last').tab('show');
         $('#customFramework a[href="'+"#"+framework+"_custom"+'"]').tab('show');
     }
+
+    // add by tiansong
+    if (!framework)
+        var $tab = $('#stdnetRole'), $active = $tab.find('.active'), framework = $active.attr('id');
+    // end by tiansong
 
     if (editor.getValue() != "") {
         bootbox.confirm(
@@ -503,6 +511,9 @@ function setFramework(fwid)
     } else {
         editor.session.setMode(new PythonMode()); // Change editor syntax environment
     }
+    // add by tiansong
+    $('#stdnetRole a[href="'+"#"+fwid+"_standard"+'"]').tab('show');
+    // add by tiansong
     $('#customFramework a[href="'+"#"+fwid+"_custom"+'"]').tab('show');
 
     if (frameworks[fwid].can_accumulate_gradients) {
@@ -522,6 +533,7 @@ function setFramework(fwid)
                 <li><a href="#network-tab-custom" data-toggle="tab">Custom Network</a></li>
             </ul>
             <div class="tab-content well">
+                <div style="display:none;">{{form.framework(class='form-control')}}</div>
                 <div id="network-tab-standard" class="tab-pane active">
                   {% include "models/images/generic/partials/new/network_tab_standard.html" %}
                 </div>

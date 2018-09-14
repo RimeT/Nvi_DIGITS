@@ -34,7 +34,7 @@ def new(extension_id=None):
     """
     form = GenericImageModelForm()
     form.dataset.choices = get_datasets(extension_id)
-    form.standard_networks.choices = []
+    form.standard_networks.choices = get_standard_networks()
     form.previous_networks.choices = get_previous_networks()
     form.pretrained_networks.choices = get_pretrained_networks()
     prev_network_snapshots = get_previous_network_snapshots()
@@ -68,7 +68,7 @@ def create(extension_id=None):
     """
     form = GenericImageModelForm()
     form.dataset.choices = get_datasets(extension_id)
-    form.standard_networks.choices = []
+    form.standard_networks.choices = get_standard_networks()
     form.previous_networks.choices = get_previous_networks()
     form.pretrained_networks.choices = get_pretrained_networks()
 
@@ -136,7 +136,21 @@ def create(extension_id=None):
 
             pretrained_model = None
             # if form.method.data == 'standard':
-            if form.method.data == 'previous':
+            # add by tiansong
+            if form.method.data == 'standard':
+                found = False
+
+                # can we find it in standard networks?
+                network_desc = fw.get_standard_network_desc(form.standard_networks.data)
+                if network_desc:
+                    found = True
+                    network = fw.get_network_from_desc(network_desc)
+
+                if not found:
+                    raise werkzeug.exceptions.BadRequest(
+                        'Unknown standard model "%s"' % form.standard_networks.data)
+            elif form.method.data == 'previous':
+            # end by tiansong
                 old_job = scheduler.get_job(form.previous_networks.data)
                 if not old_job:
                     raise werkzeug.exceptions.BadRequest(
@@ -785,6 +799,11 @@ def get_datasets(extension_id):
                 (j.status.is_running() or j.status == Status.DONE)]
     return [(j.id(), j.name())
             for j in sorted(jobs, cmp=lambda x, y: cmp(y.id(), x.id()))]
+
+def get_standard_networks():
+    return [
+        ('rcnn', 'R-CNN'),
+    ]
 
 
 def get_inference_visualizations(dataset, inputs, outputs):
