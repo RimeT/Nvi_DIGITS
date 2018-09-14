@@ -272,6 +272,17 @@ def create_db(input_file, output_dir,
                     raise ValueError('Cannot save mean file at "%s"' % mean_file)
     compute_mean = bool(mean_files)
 
+    # add by tiansong
+    img_folder = None
+    with open(input_file) as f:
+        fst_line = f.readline()
+        fst_line = fst_line.strip().split(' ')[0]
+        img_folder = os.path.dirname(os.path.dirname(fst_line))
+    logger.debug("input_file:" + input_file[:-4])
+    command = "python " + os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'im2rec.py') + " --list --recursive " + input_file[:-4] + " " + img_folder
+    os.system(command)
+    # end by tiansong
+
     # Load lines from input_file into a load_queue
 
     load_queue = Queue.Queue()
