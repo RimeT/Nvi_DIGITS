@@ -135,6 +135,25 @@ class MxnetTrainTask(TrainTask):
         """
     	return []
 
+    def unpickle_datajob(self, db_path):
+        FILE_NAME = 'status.pickle'
+        file_path = os.path.join(db_path, FILE_NAME)
+        if not os.path.isfile(file_path):
+            return None
+
+        with open(file_path) as f:
+            lines = f.readlines()
+            if lines[4].strip() == 'ImageClassificationDatasetJob':
+                return 'image-classification'
+            elif lines[4].strip() == 'GenericDatasetJob':
+                # find extension_id
+                lno = 299
+                for line in lines[300:]:
+                    lno += 1
+                    if line.strip() == "ssS'extension_id'":
+                        return str(lines[lno+2].strip()[1:])
+        return None
+
     @override
     def task_arguments(self, resources, env):
         print("mxtrain.task_arguments")
@@ -166,7 +185,14 @@ class MxnetTrainTask(TrainTask):
         val_feature_db_path = self.dataset.get_feature_db_path(constants.VAL_DB)
         val_label_db_path = self.dataset.get_label_db_path(constants.VAL_DB)
 
-        # dataloader specific to gluon
+        # dataset_folder and what type of dataset
+        dataset_dir = os.path.abspath(os.path.join(train_feature_db_path,".."))
+        args.append('--dataset_dir=%s' % dataset_dir)
+        dataset_type = self.unpickle_datajob(dataset_dir)
+        if dataset_type == None:
+            self.logger.error('dataset type unpickle error.')
+            exit(-1)
+        args.append('--dataset_type=%s' % dataset_type)
         # TODO remove this parser, gluon should read data from db
         train_txt = self.dataset.get_feature_db_path(constants.TRAIN_FILE)
         train_folder = None

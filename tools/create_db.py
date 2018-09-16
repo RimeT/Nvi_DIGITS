@@ -215,6 +215,18 @@ class Hdf5Writer(DbWriter):
         return '%s.h5' % self.count()
 
 
+def get_image_folder(input_file):
+    if input_file is None:
+        return None
+    img_folder = None
+    with open(input_file) as f:
+        fst_line = f.readline()
+        fst_line = fst_line.strip().split(' ')[0]
+        img_folder = os.path.dirname(os.path.dirname(fst_line))
+    return img_folder
+
+
+
 def create_db(input_file, output_dir,
               image_width, image_height, image_channels,
               backend,
@@ -273,13 +285,9 @@ def create_db(input_file, output_dir,
     compute_mean = bool(mean_files)
 
     # add by tiansong
-    img_folder = None
-    with open(input_file) as f:
-        fst_line = f.readline()
-        fst_line = fst_line.strip().split(' ')[0]
-        img_folder = os.path.dirname(os.path.dirname(fst_line))
+    img_folder = get_image_folder(input_file)
     logger.debug("input_file:" + input_file[:-4])
-    command = "python " + os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'im2rec.py') + " --list --recursive " + input_file[:-4] + " " + img_folder
+    command = "python " + os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'im2rec.py') + " --list --recursive " + input_file[:-4] + " " + img_folder + " && python " + os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'im2rec.py') + " --num-thread 4 " + input_file[:-4] + " " + img_folder
     os.system(command)
     # end by tiansong
 

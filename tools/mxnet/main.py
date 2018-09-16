@@ -7,6 +7,8 @@ def save_snapshot(save_dir, snapshot_prefix, epoch):
     pass
 
 import argparse
+import sys
+import inspect
 import os
 import mxnet as mx
 from mxnet import gluon
@@ -14,15 +16,9 @@ from model import Model
 import utils as digits
 import logging
 
-
-# model
-import inspect
-
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.INFO)
-
-import sys
 
 def main():
     print("mx--tools.main")
@@ -52,6 +48,10 @@ def main():
     parser.add_argument('--mean',
                         type=str)
     parser.add_argument('--labels_list',
+                        type=str)
+    parser.add_argument('--dataset_dir',
+                        type=str)
+    parser.add_argument('--dataset_type',
                         type=str)
     parser.add_argument('--train_db',
                         type=str)
@@ -104,6 +104,10 @@ def main():
                                 args['networkDirectory'], args['network'])
     exec(open(path_network).read(), globals())
 
+    dataset_dir = args['dataset_dir']
+    dataset_type = args['dataset_type']
+    logging.info("dataset_dir=%s" % dataset_dir)
+    logging.info("dataset_type=%s" % dataset_type)
     train_db = args['train_db']
     val_db = args['validation_db']
     lr_base = float(args['lr_base_rate'])
@@ -146,7 +150,8 @@ def main():
     train_model.create_model(UserModel)
 
     epoch_num = int(args["epoch"])
-    train_model.start_train(epoch_num=epoch_num)
+    if dataset_type == "image-classification":
+        train_model.classification_train(epoch_num=epoch_num)
 if __name__ ==  '__main__':
     main()
 

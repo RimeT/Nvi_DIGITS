@@ -74,7 +74,7 @@ class Model(object):
         average_loss = average_loss / len(val_loader)
         self.print_train_stats(2, volume, week, epoch, epoch_num, len(val_loader) -1, average_loss, average_acc)
     
-    def start_train(self, epoch_num=1):
+    def classification_train(self, epoch_num=1):
         self._net.collect_params().reset_ctx(self.ctx[0])
         loss_func = self.user_model.loss_function()
         t_loader = self.train_loader.get_gluon_loader()
