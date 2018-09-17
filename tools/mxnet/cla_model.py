@@ -1,5 +1,5 @@
 """
-mxent train prototype, apply nn here after User model defined by user
+mxnet train prototype, apply nn here after User model defined by user
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -10,6 +10,7 @@ import logging
 from mxnet import gluon, autograd, ndarray
 import mxnet as mx
 import utils as digits
+from model_factory import ModelFactory
 import mx_data
 
 
@@ -18,8 +19,9 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     level=logging.INFO)
 
 
-class Model(object):
-    def __init__(self, lr_base, snaps_dir, snaps_pf, snaps_itv, valid_itv, optimization=None):
+class ClassificationModel(ModelFactory):
+
+    def __init__(self, lr_base, snaps_dir, snaps_pf, snaps_itv=1, valid_itv=1, optimization=None):
         self.lr = lr_base
         self.user_model = None
         self._initializer = mx.init.Xavier()
@@ -38,9 +40,11 @@ class Model(object):
         self.summaries = []
         self.towers = []
 
+
     def create_dataloader(self, train_db, valid_db):
         self.train_loader = mx_data.LoaderFactory.set_source(train_db)
         self.valid_loader = mx_data.LoaderFactory.set_source(valid_db)
+
 
     def create_model(self, obj_UserModel):
         if digits.get_num_gpus() > 0:
@@ -53,6 +57,7 @@ class Model(object):
         self._optimization = 'sgd'
         self._trainer = gluon.Trainer(self._net.collect_params(), self._optimization,
                                       {'learning_rate': self.learning_rate()})
+
 
     def batch_validation(self, val_loader, loss_func, acc_func, volume, week, epoch, epoch_num):
         acc = acc_func
@@ -74,7 +79,8 @@ class Model(object):
         average_loss = average_loss / len(val_loader)
         self.print_train_stats(2, volume, week, epoch, epoch_num, len(val_loader) -1, average_loss, average_acc)
     
-    def classification_train(self, epoch_num=1):
+
+    def start_train(self, epoch_num=1):
         self._net.collect_params().reset_ctx(self.ctx[0])
         loss_func = self.user_model.loss_function()
         t_loader = self.train_loader.get_gluon_loader()
@@ -142,6 +148,7 @@ class Model(object):
 
         return log_str
 
+
     def format_valid(self, epoch, loss, accuracy):
         log_str = "Validation (epoch " + str(epoch) + "): "
         log_str = log_str + "loss" + " = " + "{:.6f}".format(loss) + ", "
@@ -150,46 +157,19 @@ class Model(object):
         return log_str
 
     
-    def summary(self):
-        """
-        Merge train summaries
-        """
-        for t in self.towers:
-            self.summaries += t.summaries
-
     def train_batch(self, train_batch, ctx):
         pass
+
 
     def valid_batch(self, train_batch, ctx):
         pass
 
-    def global_step(self):
-        pass
 
     def learning_rate(self):
         return self.lr
 
+
     def optimizer(self):
         if self._optimization == 'sgd':
             pass
-
-    def get_tower_lossed(self, tower):
-        """
-        :param tower: User model with loss function
-        :return:  list  of losses
-        """
-
-
-class Tower(object):
-
-    def __init__(self, num_outputs, is_training=True, is_inference=True):
-        self.num_outputs = num_outputs
-        self.net_type = gluon.nn.HybridSequential()
-        self.is_training = is_training
-        self.is_inference = is_inference
-        self.summaries = []
-        self.train = None
-
-    def gradientUpdate(self, grad):
-        pass
 

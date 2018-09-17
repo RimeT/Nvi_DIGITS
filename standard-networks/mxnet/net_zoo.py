@@ -1,5 +1,5 @@
 from mxnet import gluon
-from model import Tower
+from model_factory import Tower
 import utils as digits
 import mxnet.gluon.model_zoo.vision as zoo
 

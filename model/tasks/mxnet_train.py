@@ -135,13 +135,11 @@ class MxnetTrainTask(TrainTask):
         """
     	return []
 
-    def unpickle_datajob(self, db_path):
-        FILE_NAME = 'status.pickle'
-        file_path = os.path.join(db_path, FILE_NAME)
-        if not os.path.isfile(file_path):
+    def unpickle_datajob(self, pickle_file):
+        if not os.path.isfile(pickle_file):
             return None
 
-        with open(file_path) as f:
+        with open(pickle_file) as f:
             lines = f.readlines()
             if lines[4].strip() == 'ImageClassificationDatasetJob':
                 return 'image-classification'
@@ -184,17 +182,26 @@ class MxnetTrainTask(TrainTask):
         train_label_db_path = self.dataset.get_label_db_path(constants.TRAIN_DB)
         val_feature_db_path = self.dataset.get_feature_db_path(constants.VAL_DB)
         val_label_db_path = self.dataset.get_label_db_path(constants.VAL_DB)
+        train_rec_path = self.dataset.path('train.rec')
+        val_rec_path = self.dataset.path('val.rec')
+
+        args.append('--train_rec=%s' % train_rec_path)
+        args.append('--val_rec=%s' % val_rec_path)
 
         # dataset_folder and what type of dataset
-        dataset_dir = os.path.abspath(os.path.join(train_feature_db_path,".."))
-        args.append('--dataset_dir=%s' % dataset_dir)
-        dataset_type = self.unpickle_datajob(dataset_dir)
-        if dataset_type == None:
-            self.logger.error('dataset type unpickle error.')
-            exit(-1)
-        args.append('--dataset_type=%s' % dataset_type)
+        pickle_path = self.dataset.path("status.pickle")
+        datajob_type = self.unpickle_datajob(pickle_path)
+        args.append('--datajob_type=%s' % datajob_type)
+        if datajob_type == None:
+            self.logger.error('datajob type unpickle error.')
+
+        #args.append('--datajob_dir=%s' % dataset_dir)
         # TODO remove this parser, gluon should read data from db
-        train_txt = self.dataset.get_feature_db_path(constants.TRAIN_FILE)
+        train_txt = None
+        try:
+            train_txt = self.dataset.get_feature_db_path(constants.TRAIN_FILE)
+        except AttributeError:
+            print("no train.txt")
         train_folder = None
         if train_txt is not None:
             with open(train_txt, 'r') as f:
@@ -204,7 +211,11 @@ class MxnetTrainTask(TrainTask):
             index = image_file[:image_file.rfind('/')].rfind('/')
             train_folder = image_file[:index]
 
-        val_txt = self.dataset.get_feature_db_path(constants.VAL_FILE)
+        val_txt = None
+        try:
+            val_txt = self.dataset.get_feature_db_path(constants.VAL_FILE)
+        except AttributeError:
+            print('no val.txt')
         val_folder = None
         if val_txt is not None:
             with open(val_txt, 'r') as f:

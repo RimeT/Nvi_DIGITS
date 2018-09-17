@@ -2,8 +2,10 @@
 
 # Datasets
 TRAIN_FILE = 'train.txt'
+TRAIN_REC = 'train.rec'
 TRAIN_DB = 'train_db'
 VAL_FILE = 'val.txt'
+VAL_REC = 'val.rec'
 VAL_DB = 'val_db'
 TEST_FILE = 'test.txt'
 TEST_DB = 'test_db'
