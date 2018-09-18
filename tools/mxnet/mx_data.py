@@ -4,6 +4,7 @@ import utils as digits
 from mxnet.gluon.data.vision import transforms
 
 DB_EXTENSIONS = {
+    'rec': ['.REC'],
     'hdf5': ['.H5', '.HDF5'],
     'lmdb': ['.MDB', '.LMDB'],
     'tfrecords': ['.TFRECORDS'],
@@ -11,7 +12,8 @@ DB_EXTENSIONS = {
     'file': ['.JPG', '.JPEG', '.PNG'],
     'gangrid': ['.GAN'],
 }
-IMAGE_FOLDER = 'imgfolder'
+IMAGE_TYPE_FOLDER = 'imgfolder'
+IMAGE_TYPE_REC = 'rec'
 IMAGE_SUFFIX = ('.JPG', '.JPEG', '.PNG')
 
 
@@ -32,7 +34,14 @@ def get_backend_of_source(db_path):
     else:
         files_in_path = [db_path]
 
-    # added by tiansong
+    # Keep the below priority ordering
+    for db_fmt in ['rec']:
+        ext_list = DB_EXTENSIONS[db_fmt]
+        for ext in ext_list:
+            if any(ext in os.path.splitext(fn)[1].upper() for fn in files_in_path):
+                return db_fmt
+
+    # if we got a image folder
     imgfolder_num = 0
     for roots, dirs, files in os.walk(db_path):
         image_num = 0
@@ -49,14 +58,6 @@ def get_backend_of_source(db_path):
     if imgfolder_num > 1:
         return IMAGE_FOLDER
 
-    # Keep the below priority ordering
-    for db_fmt in ['hdf5', 'lmdb', 'tfrecords', 'filelist', 'file', 'gangrid']:
-        ext_list = DB_EXTENSIONS[db_fmt]
-        for ext in ext_list:
-            if any(ext in os.path.splitext(fn)[1].upper() for fn in files_in_path):
-                return db_fmt
-
-    # logging.error("Cannot infer backend from db_path (%s)." % (db_path))
     exit(-1)
 
 
@@ -74,7 +75,7 @@ class LoaderFactory(object):
         self.is_inference = False
         self.gluon_loader = None
 
-    def setup(self, shuffle, batch_size=None, seed=None):
+    def setup(self, shuffle, batch_size=None, seed=None, nclasses=None):
         self.shuffle = shuffle
         self.batch_size = 10
         if batch_size is not None:
@@ -82,15 +83,20 @@ class LoaderFactory(object):
         self._seed = 42
         if seed is not None:
             self._seed = int(seed)
+        self.num_outputs = nclasses
         self.initialize()
 
     @staticmethod
     def set_source(db_path):
         back_end = get_backend_of_source(db_path)
         loader = None
-        if back_end == IMAGE_FOLDER:
+        if back_end == IMAGE_TYPE_FOLDER:
             loader = ImageFolderLoader()
-            loader.backend = IMAGE_FOLDER
+            loader.backend = IMAGE_TYPE_FOLDER
+            loader.db_path = db_path
+        elif back_end == IMAGE_TYPE_REC:
+            loader = ImageRecordLoader()
+            loader.backend = IMAGE_TYPE_REC
             loader.db_path = db_path
 
         return loader
@@ -153,4 +159,40 @@ class ImageFolderLoader(LoaderFactory):
 
     def get_single_data(self):
         pass
+
+class ImageRecordLoader(LoaderFactory):
+    def __init__(self):
+        self.data_set = None
+        self.data_volume = None
+
+    def initialize(self):
+        mx.random.seed(self._seed)
+
+        # normalize
+        transformer = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(0.13, 0.31)
+        ])
+
+        self.data_set = mx.gluon.data.vision.ImageRecordDataset(self.db_path,
+                                                                flag=1)  # flag = 0:gray 1:color
+
+        self.data_volume = len(self.data_set)
+
+        self.data_set = self.data_set.transform_first(transformer)
+
+        self.gluon_loader = mx.gluon.data.DataLoader(dataset=self.data_set,
+                                                     batch_size=self.batch_size,
+                                                     shuffle=self.shuffle,
+                                                     #num_workers=digits.get_num_gpus(), # this sucks
+                                                     last_batch='discard')  # 'rollover'
+
+    def get_gluon_loader(self):
+        return self.gluon_loader
+
+    def get_shape(self):
+        if self.data_set is None:
+            print "No data set available."
+        else:
+            return self.data_set[0][0].shape
 

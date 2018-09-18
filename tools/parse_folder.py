@@ -358,6 +358,15 @@ def parse_folder(folder, labels_file,
     if percent_test:
         test_outfile = open(test_file, 'w')
 
+    print('pct_train.%f=' % percent_train)
+    print('pct_val.%f=' % percent_val)
+    print('pct_test.%f=' % percent_test)
+    # add by tiansong
+    if train_file:
+        with open(os.path.join(os.path.dirname(train_file),'rec.config'),'w') as rc:
+            rc.write("--train-ratio %.2f --test-ratio %.2f" % (percent_train / 100, percent_test / 100))
+    # end by tiansong
+
     subdir_index = 0
     label_index = 0
     for subdir in subdirs:

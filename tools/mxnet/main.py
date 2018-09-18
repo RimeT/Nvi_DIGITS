@@ -137,6 +137,14 @@ def main():
     batch_size = None
     if 'batch_size' in args:
         batch_size = args['batch_size']
+    labels_list = None
+    nclasses = None
+    if 'labels_list' in args:
+        labels_list = args['labels_list']
+        with open(labels_list) as lf:
+            nclasses = len(lf.readlines())
+    
+
     train_model = ModelFactory().get_model(datajob_type,
                                            lr_base,
                                            snaps_dir,
@@ -145,13 +153,15 @@ def main():
                                            valid_itv,
                                            optimization='sgd')
 
-    train_model.create_dataloader(train_db=train_db, valid_db=val_db)
+    train_model.create_dataloader(train_db=train_rec, valid_db=val_rec)
     train_model.train_loader.setup(shuffle=True,
                                  batch_size=batch_size,
-                                 seed=seed)
+                                 seed=seed,
+                                 nclasses=nclasses)
 
     train_model.valid_loader.setup(shuffle=False,
-                                   batch_size=batch_size)
+                                   batch_size=batch_size,
+                                   nclasses=nclasses)
 
     # train
     train_model.create_model(UserModel)

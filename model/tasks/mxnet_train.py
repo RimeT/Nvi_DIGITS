@@ -225,13 +225,13 @@ class MxnetTrainTask(TrainTask):
             index = image_file[:image_file.rfind('/')].rfind('/')
             val_folder = image_file[:index]
 
-        #args.append('--train_db=%s' % train_feature_db_path)
-        args.append('--train_db=%s' % train_folder)
+        args.append('--train_db=%s' % train_feature_db_path)
+        #args.append('--train_db=%s' % train_folder)
         if train_label_db_path:
             args.append('--train_labels=%s' % train_label_db_path)
         if val_feature_db_path:
-            #args.append('--validation_db=%s' % val_feature_db_path)
-            args.append('--validation_db=%s' % val_folder)
+            args.append('--validation_db=%s' % val_feature_db_path)
+            #args.append('--validation_db=%s' % val_folder)
         if val_label_db_path:
             args.append('--validation_labels=%s' % val_label_db_path)
 
