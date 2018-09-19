@@ -20,12 +20,15 @@ if not mx_enabled:
     print('Mxnet support disabled.')
 
 if mx_enabled:
+    import mxnet as mx
     option_list['mxnet'] = {
-        'enabled': True
+        'enabled': True,
+        'mx_version': str(mx.__version__)
     }
 
 else:
     option_list['mxnet'] = {
-        'enabled': False
+        'enabled': False,
+        'mx_version': 'Null'
     }
 
