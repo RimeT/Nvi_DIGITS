@@ -183,6 +183,8 @@ class MxnetTrainTask(TrainTask):
         val_feature_db_path = self.dataset.get_feature_db_path(constants.VAL_DB)
         val_label_db_path = self.dataset.get_label_db_path(constants.VAL_DB)
         train_rec_path = self.dataset.path('train.rec')
+        if not os.path.isfile(train_rec_path):
+            train_rec_path = self.dataset.path('train_train.rec')
         val_rec_path = self.dataset.path('val.rec')
 
         args.append('--train_rec=%s' % train_rec_path)

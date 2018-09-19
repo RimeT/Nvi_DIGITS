@@ -417,14 +417,15 @@ def _create_tfrecords(image_count, write_queue, batch_size, output_dir,
 # @TODO(tiansong) create mxnet database
 def _create_rec(input_file, output_dir):
     # add by tiansong
-    filename = os.path.basename(input_file)
-    if filename == 'test.txt':
-        return
+    file_name = os.path.basename(input_file)
+    if file_name == 'test.txt':
+        return None
     img_folder = get_image_folder(input_file)
     logger.debug("input_file:" + input_file[:-4])
     ratio_cmd = ''
-    with open(os.path.join(os.path.dirname(input_file),'rec.config'),'r') as f:
-        ratio_cmd = f.readline().strip()
+    if file_name == 'train.txt':
+        with open(os.path.join(os.path.dirname(input_file),'rec.config'),'r') as f:
+            ratio_cmd = f.readline().strip()
     command = "python " + os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'im2rec.py') + \
               " --list --recursive " + input_file[:-4] + " " + img_folder + " " + ratio_cmd + \
               " && python " + os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'im2rec.py') + \
