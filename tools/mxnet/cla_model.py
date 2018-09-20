@@ -5,6 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import time
 import logging
 from mxnet import gluon, autograd, ndarray
@@ -122,12 +123,18 @@ class ClassificationModel(ModelFactory):
 
                 #snapshot save - in epoch loop
                 if (epoch % self.snapshot_interval == 0) or (epoch == epoch_num - 1):
-                    self._net.export(self.snapshot_dir + '/' + self.snapshot_prefix, epoch=epoch)
+                    self._net.export(os.path.join(self.snapshot_dir, self.snapshot_prefix), epoch=epoch)
+                    self.print_snapshot_stats(epoch)
 
         except (KeyboardInterrupt):
             logging.info('Interrupt signal received.')
         logging.info('END')
 
+
+    def print_snapshot_stats(self, epoch):
+        snapshot_path = str("%s-%04d.params" % (os.path.join(self.snapshot_dir,self.snapshot_prefix), epoch))
+        logging.info('Snapshotting to %s', snapshot_path)
+        logging.info('Snapshot saved.')
 
     def print_train_stats(self, log_type, volume, week, epoch, epoch_num, batch_num, loss, accuracy):
         curr_epoch = round(epoch_num * (epoch * week + batch_num) / (epoch_num * week), 2)

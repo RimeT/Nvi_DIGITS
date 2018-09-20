@@ -131,9 +131,35 @@ class MxnetTrainTask(TrainTask):
         print("mx--mxtrain.get_snapshot")
         """
         return snapshot file for specified epoch
-	@TODO need to modify for mxnet
+        TODO: need to change to mxnet form
         """
-    	return []
+        snapshot_pre = None
+
+        if len(self.snapshots) == 0:
+            return "no snapshots"
+
+        if epoch == -1 or not epoch:
+            epoch = self.snapshots[-1][1]
+            snapshot_pre = self.snapshots[-1][0]
+        else:
+            for f, e in self.snapshots:
+                if e == epoch:
+                    snapshot_pre = f
+                    break
+        if not snapshot_pre:
+            raise ValueError('Invalid epoch')
+        #if download:
+        #    snapshot_file = snapshot_pre + ".data-00000-of-00001"
+        #    meta_file = snapshot_pre + ".meta"
+        #    index_file = snapshot_pre + ".index"
+        #    snapshot_files = [snapshot_file, meta_file, index_file]
+        #elif frozen_file:
+        #    snapshot_files = os.path.join(os.path.dirname(snapshot_pre), "frozen_model.pb")
+        #else:
+        #    snapshot_files = snapshot_pre
+        snapshot_files = snapshot_pre
+
+        return snapshot_files
 
     def unpickle_datajob(self, pickle_file):
         if not os.path.isfile(pickle_file):
@@ -501,13 +527,35 @@ class MxnetTrainTask(TrainTask):
     @override
     def detect_timeline_traces(self):
         print('mx-- mxnet framework not suppport detect_timeline_traces yet')
-        timeline_traces = []
-        return len(self.timeline_traces) > 0
+        self.snapshots = []
+        snapshots = []
+        for filename in os.listdir(self.job_dir):
+            # find models
+            match = re.match(r'%s_(\d+)\.?(\d*)\.params$' % self.snapshot_prefix, filename)
+            if match:
+                epoch = 0
+                # remove '.index' suffix from filename
+                filename = filename[:-7]
+                if match.group(2) == '':
+                    epoch = int(match.group(1))
+                else:
+                    epoch = float(match.group(1) + '.' + match.group(2))
+                snapshots.append((os.path.join(self.job_dir, filename), epoch))
+        self.snapshots = sorted(snapshots, key=lambda tup: tup[1])
+        return len(self.snapshots) > 0
+
 
     @override
     def detect_snapshots(self):
         print('mx-- mxnet framework not support detect_snapshots yet')
         self.snapshots = []
+        snapshots = []
+        for filename in os.listdir(self.job_dir):
+            # find models
+            if filename.endswith('.params'):
+                epoch = int(filename[-11:-7])
+                snapshots.append((os.path.join(self.job_dir, filename), epoch))
+        self.snapshots = sorted(snapshots, key=lambda tup: tup[1])
         return len(self.snapshots) > 0
 
     @override
@@ -521,6 +569,20 @@ class MxnetTrainTask(TrainTask):
                   layers=None,
                   gpu=None,
                   resize=True):
+        """
+        Classify an image
+        Returns (predictions, visualizations)
+            predictions -- an array of [ (label, confidence), ...] for each label, sorted by confidence
+            visualizations -- an array of (layer_name, activations, weights) for the specified layers
+        Returns (None, None) if something goes wrong
+
+        Arguments:
+        data -- a np.array
+
+        Keyword arguments:
+        snapshot_epoch -- which snapshot to use
+        layers -- which layer activation[s] and weight[s] to visualize
+        """
         pass
 
     def infer_one_image(self):
@@ -528,7 +590,7 @@ class MxnetTrainTask(TrainTask):
 
     @override
     def infer_many(self, data, snapshot_epoch=None, gpu=None, resize=True):
-        pass
+        return ({'output': np.array([28,28,3])},[])
 
     def infer_many_images(self):
         pass
