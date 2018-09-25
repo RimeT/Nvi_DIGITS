@@ -719,10 +719,10 @@ def get_datasets():
 
 def get_standard_networks():
     return [
-        ('lenet', 'LeNet'),
+        ('lenet', 'mnist-test'),
         ('resnet', 'ResNet-50'),
         ('net_zoo', 'Net Zoo'),
-        ('alexnet', 'AlexNet'),
+       # ('alexnet', 'AlexNet'),
         ('googlenet', 'GoogLeNet'),
     ]
 

@@ -10,6 +10,9 @@ import tempfile
 import time
 import sys
 
+import h5py
+import numpy as np
+
 from .train import TrainTask
 import digits
 from digits import utils
@@ -223,7 +226,6 @@ class MxnetTrainTask(TrainTask):
         if datajob_type == None:
             self.logger.error('datajob type unpickle error.')
 
-        #args.append('--datajob_dir=%s' % dataset_dir)
         # TODO remove this parser, gluon should read data from db
         train_txt = None
         try:
@@ -527,27 +529,19 @@ class MxnetTrainTask(TrainTask):
     @override
     def detect_timeline_traces(self):
         print('mx-- mxnet framework not suppport detect_timeline_traces yet')
-        self.snapshots = []
-        snapshots = []
+        timeline_traces = []
         for filename in os.listdir(self.job_dir):
-            # find models
-            match = re.match(r'%s_(\d+)\.?(\d*)\.params$' % self.snapshot_prefix, filename)
+            # find timeline jsons
+            match = re.match(r'%s_(.*)\.json$' % TIMELINE_PREFIX, filename)
             if match:
-                epoch = 0
-                # remove '.index' suffix from filename
-                filename = filename[:-7]
-                if match.group(2) == '':
-                    epoch = int(match.group(1))
-                else:
-                    epoch = float(match.group(1) + '.' + match.group(2))
-                snapshots.append((os.path.join(self.job_dir, filename), epoch))
-        self.snapshots = sorted(snapshots, key=lambda tup: tup[1])
-        return len(self.snapshots) > 0
+                step = int(match.group(1))
+                timeline_traces.append((os.path.join(self.job_dir, filename), step))
+        self.timeline_traces = sorted(timeline_traces, key=lambda tup: tup[1])
+        return len(self.timeline_traces) > 0
 
 
     @override
     def detect_snapshots(self):
-        print('mx-- mxnet framework not support detect_snapshots yet')
         self.snapshots = []
         snapshots = []
         for filename in os.listdir(self.job_dir):
@@ -583,17 +577,195 @@ class MxnetTrainTask(TrainTask):
         snapshot_epoch -- which snapshot to use
         layers -- which layer activation[s] and weight[s] to visualize
         """
-        pass
+        return self.infer_one_image(data,
+                                    snapshot_epoch=snapshot_epoch,
+                                    layers=layers,
+                                    gpu=gpu)
 
-    def infer_one_image(self):
-        pass
+
+    def infer_one_image(self, image, snapshot_epoch=None, layers=None, gpu=None):
+        temp_image_handle, temp_image_path = tempfile.mkstemp(suffix='.mxtmp')
+        #write image to tempfile with mxnet.ndarray format
+        mx.nd.save(temp_image_path, mx.nd.array(image))
+
+        file_to_load = self.get_snapshot(snapshot_epoch)
+
+        args = [sys.executable,
+                os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'mxnet', 'main.py'),
+                '--inference_db=%s' % temp_image_path,
+                #'--network=%s' % self.model_file,
+                '--network=%s' % os.path.join(self.job_dir, 'snapshot-symbol.json'),
+                '--networkDirectory=%s' % self.job_dir,
+                '--weights=%s' % file_to_load,
+                '--allPredictions=1',
+                '--batch_size=1',
+                ]
+        print("aa--"+str(args))
+        if hasattr(self.dataset, 'labels_file'):
+            args.append('--labels_list=%s' % self.dataset.path(self.dataset.labels_file))
+
+        if self.use_mean != 'none':
+            mean_file = self.dataset.get_mean_file()
+            assert mean_file is not None, 'Failed to retrieve mean file.'
+            args.append('--mean=%s' % self.dataset.path(mean_file))
+
+        if self.use_mean == 'pixel':
+            args.append('--subtractMean=pixel')
+        elif self.use_mean == 'image':
+            args.append('--subtractMean=image')
+        else:
+            args.append('--subtractMean=none')
+
+        if self.crop_size:
+            args.append('--croplen=%d' % self.crop_size)
+
+        if layers == 'all':
+            args.append('--visualize_inf=1')
+            args.append('--save=%s' % self.job_dir)
+
+        # Convert them all to strings
+        args = [str(x) for x in args]
+
+        self.logger.info('%s classify one task started.' % self.get_framework_id())
+
+        unrecognized_output = []
+        predictions = []
+        self.visualization_file = None
+
+        env = os.environ.copy()
+        print("aa--env:"+str(env))
+        #env['PYTHONPATH'] = os.pathsep.join(['.', self.job_dir, env.get('PYTHONPATH', '')] + sys.path)
+
+        if gpu is not None:
+            # make only the selected GPU visible
+            env['CUDA_VISIBLE_DEVICES'] = subprocess_visible_devices([gpu])
+
+        p = subprocess.Popen(args,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT,
+                             cwd=self.job_dir,
+                             close_fds=True,
+                             env=env)
+
+        try:
+            while p.poll() is None:
+                for line in utils.nonblocking_readlines(p.stdout):
+                    if self.aborted.is_set():
+                        p.terminate()
+                        raise digits.inference.errors.InferenceError('%s classify one task got aborted. error code - %d' % (self.get_framework_id(), p.returncode))  # noqa
+
+                    if line is not None and len(line) > 1:
+                        if not self.process_test_output(line, predictions, 'one'):
+                            self.logger.warning('%s classify one task unrecognized input: %s' % (
+                                self.get_framework_id(), line.strip()))
+                            unrecognized_output.append(line)
+                    else:
+                        time.sleep(0.05)
+        except Exception as e:
+            print(e)
+            if p.poll() is None:
+                p.terminate()
+            error_message = ''
+            if type(e) == digits.inference.errors.InferenceError:
+                error_message = e.__str__()
+            else:
+                error_message = '%s classify one task failed with error code %d \n %s' % (
+                    self.get_framework_id(), p.returncode, str(e))
+            self.logger.error(error_message)
+            if unrecognized_output:
+                unrecognized_output = '\n'.join(unrecognized_output)
+                error_message = error_message + unrecognized_output
+            raise digits.inference.errors.InferenceError(error_message)
+
+        finally:
+            self.after_test_run(temp_image_path)
+
+        if p.returncode != 0:
+            error_message = '%s classify one task failed with error code %d' % (self.get_framework_id(), p.returncode)
+            self.logger.error(error_message)
+            if unrecognized_output:
+                unrecognized_output = '\n'.join(unrecognized_output)
+                error_message = error_message + unrecognized_output
+            raise digits.inference.errors.InferenceError(error_message)
+        else:
+            self.logger.info('%s classify one task completed.' % self.get_framework_id())
+
+        predictions = {'output': np.array(predictions)}
+        visualizations = []
+        return (predictions, visualizations)
+
+
 
     @override
     def infer_many(self, data, snapshot_epoch=None, gpu=None, resize=True):
-        return ({'output': np.array([28,28,3])},[])
+        return self.infer_many_images(data, snapshot_epoch=snapshot_epoch, gpu=gpu)
 
-    def infer_many_images(self):
+    def infer_many_images(self, images, snapshot_epoch=None, gpu=None):
         pass
+
+
+    def get_layer_statistics(self, data):
+        pass
+
+
+    def after_test_run(self, temp_image_path):
+        try:
+            os.remove(temp_image_path)
+        except OSError:
+            print("mxtrain remove temp image file failed")
+
+    def process_test_output(self, line, predictions, test_category):
+        # parse torch output
+        timestamp, level, message = self.preprocess_output_mxnet(line)
+
+        # return false when unrecognized output is encountered
+        if not (level or message):
+            return False
+
+        if not message:
+            return True
+
+        float_exp = '([-]?inf|nan|[-+]?[0-9]*\.?[0-9]+(e[-+]?[0-9]+)?)'
+
+        # format of output while testing single image
+        match = re.match(r'For image \d+, predicted class \d+: \d+ \((.*?)\) %s' % (float_exp), message)
+        if match:
+            label = match.group(1)
+            confidence = match.group(2)
+            assert not('inf' in confidence or 'nan' in confidence), 'Network reported %s for confidence value. Please check image and network' % label  # noqa
+            confidence = float(confidence)
+            predictions.append((label, confidence))
+            return True
+
+        # format of output while testing multiple images
+        match = re.match(r'Predictions for image \d+: (.*)', message)
+        if match:
+            values = match.group(1).strip()
+            # 'values' should contain a JSON representation of
+            # the prediction
+            predictions.append(eval(values))
+            return True
+
+        # path to visualization file
+        match = re.match(r'Saving visualization to (.*)', message)
+        if match:
+            self.visualization_file = match.group(1).strip()
+            return True
+
+        # displaying info and warn messages as we aren't maintaining separate log file for model testing
+        if level == 'info':
+            self.logger.debug('%s classify %s task : %s' % (self.get_framework_id(), test_category, message))
+            return True
+        if level == 'warning':
+            self.logger.warning('%s classify %s task : %s' % (self.get_framework_id(), test_category, message))
+            return True
+
+        if level in ['error', 'critical']:
+            raise digits.inference.errors.InferenceError('%s classify %s task failed with error message - %s' % (
+                self.get_framework_id(), test_category, message))
+
+        return False  # control should never reach this line.
+
 
     def has_model(self):
         print("mxtrain.has_model")

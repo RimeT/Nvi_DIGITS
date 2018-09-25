@@ -22,6 +22,13 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     level=logging.INFO)
 
 
+def inference(image_file, json_file, param_file, labels_file, job_dir):
+    logging.info("image_file:"+image_file)
+    image = mx.nd.load(image_file)[0]
+    net = gluon.nn.SymbolBlock.imports(json_file, ['data'], param_file)
+
+
+
 def main():
     logging.info('tools.mxnet.main is running')
     # arg parse start
@@ -44,6 +51,8 @@ def main():
                         type=str)
     parser.add_argument('--lr_policy',
                         type=str)
+    parser.add_argument('--allPredictions',
+                        type=int)
     parser.add_argument('--batch_size',
                         type=int)
     parser.add_argument('--mean',
@@ -64,6 +73,8 @@ def main():
                         type=str)
     parser.add_argument('--validation_labels',
                         type=str)
+    parser.add_argument('--inference_db',
+                        type=str)
     parser.add_argument('--lr_gamma',
                         type=str)
     parser.add_argument('--lr_stepvalues',
@@ -76,6 +87,8 @@ def main():
                         type=int)
     parser.add_argument('--subtractMean',
                         type=str)
+    parser.add_argument('--visualize_inf',
+                        type=int)
     parser.add_argument('--seed',
                         type=str)
     parser.add_argument('--optimization',
@@ -102,10 +115,25 @@ def main():
                         type=str)
     
     args = vars(parser.parse_args())
+
+
+    logging.debug("aa--main_args---"+str(args))
+    # inference
+    if args['inference_db'] is not None:
+        logging.info("aa--there is inference")
+        image_file = args['inference_db'] # mx.ndarray tempfilepath. file content is a list, list[0] is the image
+        json_file = args['network']
+        param_file = args['weights']
+        labels_file = args['labels_list']
+        job_dir = args['save']
+        inference(image_file, json_file, param_file, labels_file, job_dir)
+        return
+
     # arg parse end
     path_network = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 args['networkDirectory'], args['network'])
     exec(open(path_network).read(), globals())
+
 
     train_db = args['train_db']
     val_db = args['validation_db']
@@ -119,8 +147,7 @@ def main():
     seed = None
     logging.info('train_rec=%s' % train_rec)
     logging.info('val_rec=%s' % val_rec)
-    if 'seed' in args:
-        seed = args['seed']
+    seed = args['seed']
 
     try:
         UserModel
@@ -134,12 +161,10 @@ def main():
     datajob_type = args['datajob_type']
     logging.info('datajob type is ' + datajob_type)
 
-    batch_size = None
-    if 'batch_size' in args:
-        batch_size = args['batch_size']
+    batch_size = args['batch_size']
     labels_list = None
     nclasses = None
-    if 'labels_list' in args:
+    if args['labels_list'] is not None:
         labels_list = args['labels_list']
         with open(labels_list) as lf:
             nclasses = len(lf.readlines())

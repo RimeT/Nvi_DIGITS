@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-theme.min.css', ver=dir_hash) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', ver=dir_hash) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/c3.min.css', ver=dir_hash) }}">
-    <title>{% block title %}InferScholar{% endblock %}</title>
+    <title>{% block title %}推想科技:InferScholar{% endblock %}</title>
 
     <script type="text/javascript">
         var URL_PREFIX = "{{config['URL_PREFIX']}}";
@@ -37,7 +37,7 @@
 <div class="navbar navbar-inverse navbar-fixed-top">
     <div class="container">
         <div class="navbar-header">
-            <a class="navbar-brand" href="{{ url_for("digits.views.home") }}">InferScholar</a>
+            <a class="navbar-brand" href="{{ url_for("digits.views.home") }}">推想科技:InferScholar</a>
         </div>
         <ul class="nav navbar-nav">
             {% block nav %}
