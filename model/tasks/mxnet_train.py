@@ -600,7 +600,6 @@ class MxnetTrainTask(TrainTask):
                 '--allPredictions=1',
                 '--batch_size=1',
                 ]
-        print("aa--"+str(args))
         if hasattr(self.dataset, 'labels_file'):
             args.append('--labels_list=%s' % self.dataset.path(self.dataset.labels_file))
 
@@ -633,8 +632,6 @@ class MxnetTrainTask(TrainTask):
         self.visualization_file = None
 
         env = os.environ.copy()
-        print("aa--env:"+str(env))
-        #env['PYTHONPATH'] = os.pathsep.join(['.', self.job_dir, env.get('PYTHONPATH', '')] + sys.path)
 
         if gpu is not None:
             # make only the selected GPU visible

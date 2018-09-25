@@ -10,8 +10,10 @@ import argparse
 import sys
 import inspect
 import os
+import json
 import mxnet as mx
 from mxnet import gluon
+from mxnet.gluon.data.vision import transforms
 from model_factory import ModelFactory
 from cla_model import ClassificationModel
 import utils as digits
@@ -23,10 +25,17 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
 
 
 def inference(image_file, json_file, param_file, labels_file, job_dir):
-    logging.info("image_file:"+image_file)
     image = mx.nd.load(image_file)[0]
+    transformer = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(0.13, 0.31)])
+    x = transformer(image).expand_dims(axis=0)
     net = gluon.nn.SymbolBlock.imports(json_file, ['data'], param_file)
-
+    pred = net(x)[0]
+    print("shape--"+str(pred.shape))
+    confid = mx.ndarray.softmax(pred)
+    confid = confid.asnumpy().tolist()
+    logging.info('Predictions for image ' + '0' + ": " + json.dumps(confid))
 
 
 def main():
@@ -116,8 +125,6 @@ def main():
     
     args = vars(parser.parse_args())
 
-
-    logging.debug("aa--main_args---"+str(args))
     # inference
     if args['inference_db'] is not None:
         logging.info("aa--there is inference")
