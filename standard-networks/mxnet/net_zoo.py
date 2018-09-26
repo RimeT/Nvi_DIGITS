@@ -8,7 +8,7 @@ class UserModel(Tower):
 
     def construct_net(self):
         # net_type indicates gluon.nn
-        net = zoo.resnet50_v1()
+        net = zoo.resnet50_v1(classes=self.num_outputs)
         # zoo.resnet50_v2()
         # zoo.alexnet()
         # zoo.densenet121()

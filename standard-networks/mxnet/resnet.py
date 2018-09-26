@@ -8,7 +8,7 @@ class UserModel(Tower):
     def construct_net(self):
         # net_type indicates gluon.nn
         # default net_type is gluon.nn.HybridSequential()
-        net = gluon.model_zoo.vision.resnet50_v2()
+        net = gluon.model_zoo.vision.resnet50_v2(classes=self.num_outputs)
         return net
 
     def loss_function(self):
