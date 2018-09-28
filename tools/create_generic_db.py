@@ -19,8 +19,10 @@ import threading
 # Add path for DIGITS package
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import digits.config  # noqa
+from digits.utils import constants
 from digits import extensions, log  # noqa
 from digits.job import Job  # noqa
+from digits.tools.create_mxnet_db import MxDbFactory
 
 # Import digits.config first to set the path to Caffe
 import caffe.io  # noqa
@@ -415,11 +417,34 @@ def create_generic_db(jobs_dir, dataset_id, stage):
     if not os.path.isdir(dataset_dir):
         raise IOError("Dataset dir %s does not exist" % dataset_dir)
     dataset = Job.load(dataset_dir)
-
+ 
     # create instance of extension
     extension_id = dataset.extension_id
     extension_class = extensions.data.get_extension(extension_id)
     extension = extension_class(**dataset.extension_userdata)
+
+    # add by tiansong
+    backend = dataset.backend
+    job_type = extension.get_id()
+    train_image_folder = extension.train_image_folder
+    train_label_folder = extension.train_label_folder
+    val_image_folder = extension.val_image_folder
+    val_label_folder = extension.val_label_folder
+    pad_image_width = extension.padding_image_width
+    pad_image_height = extension.padding_image_height
+
+    if backend == "rec":
+        mx_db = MxDbFactory(stage, dataset_dir)
+        #print("aa--"+stage+"--"+dataset_dir)
+        mx_db = mx_db.get_Db_Creator(job_type)
+        #print("aa--"+job_type)
+        if stage == constants.TRAIN_DB:
+            #print("aa--"+str(pad_image_width)+"--"+str(pad_image_height)+"--"+train_image_folder+"--"+train_label_folder)
+            mx_db.start_parse(pad_image_width, pad_image_height, train_image_folder, train_label_folder)
+        logger.info('Generic DB creation Done')
+        return
+    # end by tiansong
+
 
     # encoding
     feature_encoding = dataset.feature_encoding

@@ -61,9 +61,10 @@ class GenericDatasetForm(DatasetForm):
     dsopts_backend = wtforms.SelectField(
         'DB backend',
         choices=[
+            ('rec', 'Mxnet'),
             ('lmdb', 'LMDB'),
         ],
-        default='lmdb',
+        default='rec',
     )
 
     dsopts_force_same_shape = utils.forms.SelectField(
