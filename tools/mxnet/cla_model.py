@@ -42,9 +42,10 @@ class ClassificationModel(ModelFactory):
         self.towers = []
 
 
-    def create_dataloader(self, train_db, valid_db):
-        self.train_loader = mx_data.LoaderFactory.set_source(train_db)
-        self.valid_loader = mx_data.LoaderFactory.set_source(valid_db)
+    def create_dataloader(self, job_type, train_db, valid_db):
+        self.train_loader = mx_data.LoaderFactory.set_source(job_type, train_db)
+        if valid_db:
+            self.valid_loader = mx_data.LoaderFactory.set_source(job_type, valid_db)
 
 
     def create_model(self, obj_UserModel):

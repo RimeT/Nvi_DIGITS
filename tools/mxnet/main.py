@@ -74,6 +74,8 @@ def main():
                         type=str)
     parser.add_argument('--datajob_type',
                         type=str)
+    parser.add_argument('--datajob_dir',
+                        type=str)
     parser.add_argument('--train_db',
                         type=str)
     parser.add_argument('--train_labels',
@@ -124,6 +126,8 @@ def main():
                         type=str)
     
     args = vars(parser.parse_args())
+    # test
+    logging.info("task_arguments:" + str(args))
 
     # inference
     if args['inference_db'] is not None:
@@ -167,6 +171,7 @@ def main():
     
     datajob_type = args['datajob_type']
     logging.info('datajob type is ' + datajob_type)
+    datajob_dir = args['datajob_dir']
 
     batch_size = args['batch_size']
     labels_list = None
@@ -185,15 +190,15 @@ def main():
                                            valid_itv,
                                            optimization='sgd')
 
-    train_model.create_dataloader(train_db=train_rec, valid_db=val_rec)
+    train_model.create_dataloader(datajob_type, train_db=train_rec, valid_db=val_rec)
     train_model.train_loader.setup(shuffle=True,
                                  batch_size=batch_size,
                                  seed=seed,
                                  nclasses=nclasses)
-
-    train_model.valid_loader.setup(shuffle=False,
-                                   batch_size=batch_size,
-                                   nclasses=nclasses)
+    if train_model.valid_loader:
+        train_model.valid_loader.setup(shuffle=False,
+                                       batch_size=batch_size,
+                                       nclasses=nclasses)
 
     # train
     train_model.create_model(UserModel)

@@ -40,9 +40,10 @@ class ObjectDetectionModel(ModelFactory):
         self.summaries = []
         self.towers = []
 
-    def create_dataloader(self, train_db, valid_db):
-        self.train_loader = mx_data.LoaderFactory.set_source(train_db)
-        self.valid_loader = mx_data.LoaderFactory.set_source(valid_db)
+    def create_dataloader(self, job_type, train_db, valid_db):
+        self.train_loader = mx_data.LoaderFactory.set_source(job_type, train_db)
+        if valid_db:
+            self.valid_loader = mx_data.LoaderFactory.set_source(job_type, valid_db)
 
 
     def create_model(self, obj_UserModel):
@@ -59,5 +60,9 @@ class ObjectDetectionModel(ModelFactory):
 
     def start_train(self, epoch_num=1):
         logging.info("hi from object detection start_train")
-        pass
+        logging.info('Started training the model')
+        logging.info('END')
+
+    def learning_rate(self):
+        return self.lr
 

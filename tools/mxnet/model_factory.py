@@ -30,7 +30,7 @@ class ModelFactory(object):
             from seg_model import SegmentationModel
             return SegmentationModel(lr_base, snaps_dir, snaps_pf, snaps_itv, valid_itv, optimization)
 
-    def create_dataloader(self, train_db, valid_db=None):
+    def create_dataloader(self, job_type, train_db, valid_db=None):
         raise NotImplementedError
 
     def create_model(self, obj_UserModel):

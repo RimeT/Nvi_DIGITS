@@ -5,6 +5,7 @@ from mxnet.gluon.data.vision import transforms
 
 DB_EXTENSIONS = {
     'rec': ['.REC'],
+    'lst': ['.LST'],
     'hdf5': ['.H5', '.HDF5'],
     'lmdb': ['.MDB', '.LMDB'],
     'tfrecords': ['.TFRECORDS'],
@@ -14,6 +15,7 @@ DB_EXTENSIONS = {
 }
 IMAGE_TYPE_FOLDER = 'imgfolder'
 IMAGE_TYPE_REC = 'rec'
+IMAGE_TYPE_LST = 'lst'
 IMAGE_SUFFIX = ('.JPG', '.JPEG', '.PNG')
 
 
@@ -35,7 +37,7 @@ def get_backend_of_source(db_path):
         files_in_path = [db_path]
 
     # Keep the below priority ordering
-    for db_fmt in ['rec']:
+    for db_fmt in ['rec','lst']:
         ext_list = DB_EXTENSIONS[db_fmt]
         for ext in ext_list:
             if any(ext in os.path.splitext(fn)[1].upper() for fn in files_in_path):
@@ -87,7 +89,7 @@ class LoaderFactory(object):
         self.initialize()
 
     @staticmethod
-    def set_source(db_path):
+    def set_source(job_type, db_path):
         back_end = get_backend_of_source(db_path)
         loader = None
         if back_end == IMAGE_TYPE_FOLDER:
@@ -98,6 +100,11 @@ class LoaderFactory(object):
             loader = ImageRecordLoader()
             loader.backend = IMAGE_TYPE_REC
             loader.db_path = db_path
+        elif back_end == IMAGE_TYPE_LST:
+            if job_type == 'image-object-detection':
+                loader = DetLstLoader()
+                loader.backend = IMAGE_TYPE_LST
+                loader.db_path = db_path
 
         return loader
 
@@ -196,3 +203,15 @@ class ImageRecordLoader(LoaderFactory):
         else:
             return self.data_set[0][0].shape
 
+class DetLstLoader(LoaderFactory):
+    def __init__(self):
+        pass
+
+    def initialize(self):
+        mx.random.seed(self._seed)
+
+    def get_gluon_loader(self):
+        return None
+
+    def get_shape(self):
+        return None
