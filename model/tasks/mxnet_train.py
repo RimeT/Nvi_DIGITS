@@ -244,7 +244,7 @@ class MxnetTrainTask(TrainTask):
                 image_file = first_line.split(' ')[0]
                 index = image_file[:image_file.rfind('/')].rfind('/')
                 train_folder = image_file[:index]
-
+            #args.append('--train_rec=%s' % train_folder)
             val_txt = None
             try:
                 val_txt = self.dataset.get_feature_db_path(constants.VAL_FILE)
@@ -258,7 +258,8 @@ class MxnetTrainTask(TrainTask):
                 image_file = first_line.split(' ')[0]
                 index = image_file[:image_file.rfind('/')].rfind('/')
                 val_folder = image_file[:index]
-        # --classification end
+            #args.append('--val_rec=%s' % val_folder)
+            # --classification end
 
         # --object detection start
         elif datajob_type == 'image-object-detection':

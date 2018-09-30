@@ -27,6 +27,7 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
 def inference(image_file, json_file, param_file, labels_file, job_dir):
     image = mx.nd.load(image_file)[0]
     transformer = transforms.Compose([
+        transforms.Resize(500),
         transforms.ToTensor(),
         transforms.Normalize(0.13, 0.31)])
     x = transformer(image).expand_dims(axis=0)

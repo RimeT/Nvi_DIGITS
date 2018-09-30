@@ -19,10 +19,11 @@ class ImageClassificationDatasetForm(ImageDatasetForm):
 
     backend = wtforms.SelectField('DB backend',
                                   choices=[
+                                      ('rec', 'Mxnet'),
                                       ('lmdb', 'LMDB'),
                                       ('hdf5', 'HDF5')
                                   ],
-                                  default='lmdb',
+                                  default='rec',
                                   )
 
     def validate_backend(form, field):

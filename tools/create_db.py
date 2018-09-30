@@ -312,9 +312,11 @@ def create_db(input_file, output_dir,
     start = time.time()
 
     #add by tiansong
-    _create_rec(input_file, output_dir)
+    if backend == 'rec':
+        resize = (image_width if image_width > image_height else image_height)
+        _create_rec(input_file, output_dir, resize)
     #end by tiansong
-    if backend == 'lmdb':
+    elif backend == 'lmdb':
         _create_lmdb(image_count, write_queue, batch_size, output_dir,
                      summary_queue, num_threads,
                      mean_files, **kwargs)
@@ -415,7 +417,7 @@ def _create_tfrecords(image_count, write_queue, batch_size, output_dir,
 
 # added by tiansong
 # @TODO(tiansong) create mxnet database
-def _create_rec(input_file, output_dir):
+def _create_rec(input_file, output_dir, resize=None):
     # add by tiansong
     file_name = os.path.basename(input_file)
     if file_name == 'test.txt':
@@ -429,7 +431,7 @@ def _create_rec(input_file, output_dir):
     command = "python " + os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'im2rec.py') + \
               " --list --recursive " + input_file[:-4] + " " + img_folder + " " + ratio_cmd + \
               " && python " + os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'im2rec.py') + \
-              " --num-thread 4 " + input_file[:-4] + " " + img_folder
+              " --num-thread 4 " + input_file[:-4] + " --resize "+ str(resize) +" " + img_folder
     os.system(command)
     # end by tiansong
 

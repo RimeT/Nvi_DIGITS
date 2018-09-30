@@ -2,6 +2,7 @@ import os
 import mxnet as mx
 import utils as digits
 from mxnet.gluon.data.vision import transforms
+import numpy as np
 
 DB_EXTENSIONS = {
     'rec': ['.REC'],
@@ -58,7 +59,7 @@ def get_backend_of_source(db_path):
 
     # imgfolder_num indicates num of folders contains images
     if imgfolder_num > 1:
-        return IMAGE_FOLDER
+        return IMAGE_TYPE_FOLDER
 
     exit(-1)
 
@@ -132,18 +133,20 @@ class ImageFolderLoader(LoaderFactory):
     def initialize(self):
         mx.random.seed(self._seed)
 
-        # normalize
-        transformer = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(0.13, 0.31)
-        ])
 
         self.data_set = mx.gluon.data.vision.ImageFolderDataset(self.db_path,
                                                                 flag=1)  # flag = 0:gray 1:color
 
         self.data_volume = len(self.data_set)
         self.num_outputs = len(self.data_set.synsets)
-
+        # normalize
+        width, height, _ = self.data_set[0][0].shape
+        resize = width if width > height else height
+        transformer = transforms.Compose([
+            transforms.Resize(resize), # resize must be given before ToTensor()
+            transforms.ToTensor(),
+            transforms.Normalize(0.13, 0.31)
+        ])
         self.data_set = self.data_set.transform_first(transformer)
 
         self.gluon_loader = mx.gluon.data.DataLoader(dataset=self.data_set,
@@ -175,17 +178,20 @@ class ImageRecordLoader(LoaderFactory):
     def initialize(self):
         mx.random.seed(self._seed)
 
-        # normalize
-        transformer = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(0.13, 0.31)
-        ])
 
         self.data_set = mx.gluon.data.vision.ImageRecordDataset(self.db_path,
                                                                 flag=1)  # flag = 0:gray 1:color
 
         self.data_volume = len(self.data_set)
 
+        width, height, channel = self.data_set[0][0].shape
+        resize = width if width > height else height
+        # normalize
+        transformer = transforms.Compose([
+            transforms.Resize(resize), # resize must be given before ToTensor()
+            transforms.ToTensor(),
+            transforms.Normalize(0.13, 0.31)
+        ])
         self.data_set = self.data_set.transform_first(transformer)
 
         self.gluon_loader = mx.gluon.data.DataLoader(dataset=self.data_set,
