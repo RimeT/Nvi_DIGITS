@@ -44,7 +44,7 @@ class SegmentationModel(ModelFactory):
         self.snapshot_interval = snaps_itv
         self.valid_interval = valid_itv
         self.ctx = mx.cpu()
-        self.gpu_num = digits.get_num_gpus()
+        #self.gpu_num = digits.get_num_gpus()
         self.summaries = []
         self.towers = []
 

@@ -152,8 +152,8 @@ class ImageFolderLoader(LoaderFactory):
         self.gluon_loader = mx.gluon.data.DataLoader(dataset=self.data_set,
                                                      batch_size=self.batch_size,
                                                      shuffle=self.shuffle,
-                                                     num_workers=digits.get_num_gpus(),
-                                                     last_batch='discard')  # 'rollover'
+                                                     #num_workers=digits.get_num_gpus(), # mxnet multi thread really sucks
+                                                     last_batch='keep')  # 'rollover'
 
     def get_gluon_loader(self):
         return self.gluon_loader
@@ -198,7 +198,7 @@ class ImageRecordLoader(LoaderFactory):
                                                      batch_size=self.batch_size,
                                                      shuffle=self.shuffle,
                                                      #num_workers=digits.get_num_gpus(), # this sucks
-                                                     last_batch='discard')  # 'rollover'
+                                                     last_batch='keep')  # 'rollover'
 
     def get_gluon_loader(self):
         return self.gluon_loader

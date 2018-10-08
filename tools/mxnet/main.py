@@ -132,7 +132,6 @@ def main():
 
     # inference
     if args['inference_db'] is not None:
-        logging.info("aa--there is inference")
         image_file = args['inference_db'] # mx.ndarray tempfilepath. file content is a list, list[0] is the image
         json_file = args['network']
         param_file = args['weights']

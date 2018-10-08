@@ -10,6 +10,7 @@ import time
 import logging
 from mxnet import gluon, autograd, ndarray
 import mxnet as mx
+import numpy as np
 import utils as digits
 from model_factory import ModelFactory
 import mx_data
@@ -37,7 +38,7 @@ class ClassificationModel(ModelFactory):
         self.snapshot_interval = snaps_itv
         self.valid_interval = valid_itv
         self.ctx = mx.cpu()
-        self.gpu_num = digits.get_num_gpus()
+        #self.gpu_num = digits.get_num_gpus()
         self.summaries = []
         self.towers = []
 
@@ -54,7 +55,7 @@ class ClassificationModel(ModelFactory):
         self.user_model = obj_UserModel(self.train_loader.num_outputs)
         self._net = self.user_model.construct_net()
         self._net.hybridize()
-        self._net.initialize(self._initializer, ctx=self.ctx[0])
+        self._net.initialize(self._initializer, ctx=self.ctx)
         # trainer
         self._optimization = 'sgd'
         self._trainer = gluon.Trainer(self._net.collect_params(), self._optimization,
@@ -67,14 +68,21 @@ class ClassificationModel(ModelFactory):
         average_loss = 0
         
         for batch_num, (data, label) in enumerate(val_loader):
-            data = data.as_in_context(self.ctx[0])
-            label = label.as_in_context(self.ctx[0])
-            output = self._net(data)
-            loss = loss_func(output, label)
-            curr_loss = ndarray.mean(loss).asscalar()
+            #data = data.as_in_context(self.ctx[0])
+            #label = label.as_in_context(self.ctx[0])
+            data_list = gluon.utils.split_and_load(data, self.ctx)
+            label_list = gluon.utils.split_and_load(label, self.ctx)
+            #output = self._net(data)
+            outputs = [self._net(X) for X in data_list]
+            losses = [loss_func(output, label) for output, label in zip(outputs, label_list)]
+            #loss = loss_func(output, label)
+            curr_loss = [ndarray.mean(loss).asscalar() for loss in losses]
+            curr_loss = np.mean(curr_loss)
             average_loss += curr_loss
-            predictions = mx.nd.argmax(output, axis=1)
-            acc.update(preds=predictions, labels=label)
+            #predictions = mx.nd.argmax(output, axis=1)
+            predictions = [mx.nd.argmax(output, axis=1) for output in outputs]
+            for prediction, l in zip(predictions, label_list):
+                acc.update(preds=prediction, labels=l)
             average_acc += acc.get()[1]
 
         average_acc = average_acc / len(val_loader)
@@ -83,7 +91,6 @@ class ClassificationModel(ModelFactory):
     
 
     def start_train(self, epoch_num=1):
-        self._net.collect_params().reset_ctx(self.ctx[0])
         loss_func = self.user_model.loss_function()
         t_loader = self.train_loader.get_gluon_loader()
         v_loader = self.valid_loader.get_gluon_loader()
@@ -99,20 +106,29 @@ class ClassificationModel(ModelFactory):
                 train_acc = mx.metric.Accuracy()
                 valid_acc = mx.metric.Accuracy()
                 for batch_num, (data, label) in enumerate(t_loader):
-                    data = data.as_in_context(self.ctx[0])
-                    label = label.as_in_context(self.ctx[0])
+                    #data = data.as_in_context(self.ctx[0])
+                    #label = label.as_in_context(self.ctx[0])
+                    data_list = gluon.utils.split_and_load(data, self.ctx)
+                    label_list = gluon.utils.split_and_load(label, self.ctx)
                     # ask auto grad to record the forward pass
                     with autograd.record():
-                        output = self._net(data)
-                        loss = loss_func(output, label)
-                    loss.backward()
-                    self._trainer.step(data.shape[0])
-                    curr_loss = ndarray.mean(loss).asscalar()
+                        #output = self._net(data)
+                        outputs = [self._net(X) for X in data_list]
+                        #loss = loss_func(output, label)
+                        losses = [loss_func(output, label) for output, label in zip(outputs, label_list)]
+                    #loss.backward()
+                    for l in losses:
+                        l.backward()
+                    #self._trainer.step(data.shape[0])
+                    self._trainer.step(self.train_loader.get_batch_size())
+                    curr_loss = [ndarray.mean(l).asscalar() for l in losses]
+                    curr_loss = np.mean(curr_loss)
                     moving_loss = (curr_loss if ((batch_num == 0) and (epoch == 0))
                        else (1 - smoothing_constant) * moving_loss + smoothing_constant * curr_loss)
                     # accuracy
-                    preds = mx.nd.argmax(output, axis=1)
-                    train_acc.update(preds=preds, labels=label)
+                    preds = [mx.nd.argmax(output, axis=1) for output in outputs]
+                    for pred, l in zip(preds, label_list):
+                        train_acc.update(preds=pred, labels=l)
 
                     # print loss once in a while - in batch loop
                     if batch_num % self.log_interval == 0:
